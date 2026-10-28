@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { redirectWithSession, updateSession } from "@/lib/supabase/proxy";
 
 /** Routes that require a signed-in member. Pages re-check on the server as well. */
-const PRIVATE_PREFIXES = ["/home", "/onboarding", "/reset-password"];
+const PRIVATE_PREFIXES = [
+  "/home",
+  "/onboarding",
+  "/reset-password",
+  "/profile",
+  "/settings",
+];
 /** Pages only for signed-out visitors. */
 const GUEST_ONLY = ["/login", "/signup", "/forgot-password"];
 
@@ -45,6 +51,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/home/:path*",
+    "/profile/:path*",
+    "/settings/:path*",
     "/onboarding/:path*",
     "/reset-password/:path*",
     "/login",

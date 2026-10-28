@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { LogOut } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
-import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/layout/app-header";
+import { LinkButton } from "@/components/ui/link-button";
 import { avatarUrl, requireMember } from "@/lib/auth/session";
-import { signOut } from "@/features/auth/actions";
 import { FIELDS, MEMBER_TYPES } from "@/features/onboarding/options";
 
 export const metadata: Metadata = {
@@ -43,21 +41,7 @@ async function HomeContent() {
 
   return (
     <>
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-5">
-          <Logo />
-          <form action={signOut}>
-            <Button
-              type="submit"
-              variant="outline"
-              className="h-9 px-3.5 text-sm"
-            >
-              <LogOut className="size-4" aria-hidden="true" />
-              Sign out
-            </Button>
-          </form>
-        </div>
-      </header>
+      <AppHeader username={profile.username} />
       <main id="main" className="mx-auto max-w-4xl px-5 py-10">
         <section
           aria-labelledby="welcome"
@@ -82,6 +66,21 @@ async function HomeContent() {
             <p className="mt-1 text-sm text-muted-foreground">
               {[role, fields].filter(Boolean).join(" · ")}
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <LinkButton
+                href={`/profile/${profile.username}`}
+                className="h-9 px-3.5 text-sm"
+              >
+                View my profile
+              </LinkButton>
+              <LinkButton
+                href="/profile/edit"
+                variant="outline"
+                className="h-9 px-3.5 text-sm"
+              >
+                Edit profile
+              </LinkButton>
+            </div>
           </div>
         </section>
         <p className="mt-6 rounded-2xl border border-dashed border-maroon-200 bg-maroon-50 p-6 text-maroon-900">

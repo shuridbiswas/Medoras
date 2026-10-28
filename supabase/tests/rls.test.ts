@@ -209,6 +209,148 @@ describe("constraints", () => {
   });
 });
 
+describe("profile system (Phase 3)", () => {
+  const carol = "00000000-0000-0000-0000-00000000000c";
+
+  const addEdu = (profileId: string) =>
+    db.query(
+      "insert into public.profile_education (profile_id, institution, qualification) values ($1, 'McGill', 'BScN') returning id",
+      [profileId],
+    );
+
+  beforeAll(async () => {
+    await asAdmin();
+    await db.query("insert into auth.users (id, email, raw_user_meta_data) values ($1, 'carol@example.com', '{}')", [carol]);
+  });
+
+  it("keeps /profile/edit and other routes from being taken as usernames", async () => {
+    await asUser(alice);
+    for (const name of ["edit", "profile", "settings", "new"]) {
+      expect(await failure("update public.profiles set username = $1 where id = $2", [name, alice])).toMatch(
+        /profiles_username_not_reserved/,
+      );
+    }
+  });
+
+  it("lets owners write the new profile fields and validates them", async () => {
+    await asUser(alice);
+    const ok = await db.query(
+      `update public.profiles set location_label = 'Montreal, QC', professional_journey = 'x', career_aspirations = 'y',
+         looking_for_mentorship = true, open_to_mentor = true where id = $1 returning id`,
+      [alice],
+    );
+    expect(ok.rows).toHaveLength(1);
+    expect(await failure("update public.profiles set location_label = $1 where id = $2", ["x".repeat(81), alice])).toMatch(
+      /location_label_length/,
+    );
+    expect(await failure("update public.profiles set professional_journey = $1 where id = $2", ["x".repeat(2001), alice])).toMatch(
+      /journey_length/,
+    );
+  });
+
+  it("lets a member add, edit and delete only their own education", async () => {
+    await asUser(alice);
+    const created = await addEdu(alice);
+    const id = (created.rows[0] as { id: string }).id;
+    const updated = await db.query("update public.profile_education set qualification = 'MScN' where id = $1 returning id", [id]);
+    expect(updated.rows).toHaveLength(1);
+
+    expect(await failure("insert into public.profile_education (profile_id, institution, qualification) values ($1, 'X', 'Y')", [bob])).toMatch(
+      /row-level security/i,
+    );
+
+    await asUser(bob);
+    const hijack = await db.query("update public.profile_education set qualification = 'hacked' where id = $1 returning id", [id]);
+    const remove = await db.query("delete from public.profile_education where id = $1 returning id", [id]);
+    expect(hijack.rows).toHaveLength(0);
+    expect(remove.rows).toHaveLength(0);
+
+    await asUser(alice);
+    expect(await failure("update public.profile_education set profile_id = $1 where id = $2", [bob, id])).toMatch(/permission denied/i);
+    const gone = await db.query("delete from public.profile_education where id = $1 returning id", [id]);
+    expect(gone.rows).toHaveLength(1);
+  });
+
+  it("hides rows of members who have not finished onboarding, and shows completed ones", async () => {
+    await asAdmin();
+    await db.query("insert into public.profile_education (profile_id, institution, qualification) values ($1, 'Hidden U', 'BA')", [carol]);
+    await db.query("insert into public.profile_education (profile_id, institution, qualification) values ($1, 'Bob U', 'BA')", [bob]);
+    await asUser(alice);
+    const rows = await db.query<{ institution: string }>("select institution from public.profile_education order by institution");
+    expect(rows.rows.map((r) => r.institution)).toEqual(["Bob U"]);
+  });
+
+  it("enforces education year and current-study rules", async () => {
+    await asUser(alice);
+    expect(await failure("insert into public.profile_education (profile_id, institution, qualification, start_year, end_year) values ($1,'a','b',2020,2019)", [alice])).toMatch(
+      /years_ordered/,
+    );
+    expect(
+      await failure("insert into public.profile_education (profile_id, institution, qualification, currently_studying, end_year) values ($1,'a','b',true,2024)", [alice]),
+    ).toMatch(/current_has_no_end/);
+    expect(await failure("insert into public.profile_education (profile_id, institution, qualification, start_year) values ($1,'a','b',1800)", [alice])).toMatch(
+      /start_year_range/,
+    );
+  });
+
+  it("validates experience type and dates, and keeps it owner-only", async () => {
+    await asUser(alice);
+    const ok = await db.query(
+      "insert into public.profile_experience (profile_id, title, organization, employment_type, start_date, is_current) values ($1,'RN','CHUM','full_time','2024-05-01',true) returning id",
+      [alice],
+    );
+    expect(ok.rows).toHaveLength(1);
+    expect(
+      await failure("insert into public.profile_experience (profile_id, title, organization, start_date, end_date) values ($1,'a','b','2024-05-01','2023-01-01')", [alice]),
+    ).toMatch(/dates_ordered/);
+    expect(
+      await failure("insert into public.profile_experience (profile_id, title, organization, employment_type, start_date) values ($1,'a','b','pirate','2024-05-01')", [alice]),
+    ).toMatch(/type_valid/);
+    expect(
+      await failure("insert into public.profile_experience (profile_id, title, organization, start_date) values ($1,'a','b','2024-05-01')", [bob]),
+    ).toMatch(/row-level security/i);
+  });
+
+  it("stores unique, clean skills and blocks edits to other members' lists", async () => {
+    await asUser(alice);
+    expect(await failure("insert into public.profile_skills (profile_id, name, kind) values ($1, 'Active listening', 'skill')", [alice])).toBeNull();
+    expect(await failure("insert into public.profile_skills (profile_id, name, kind) values ($1, 'active LISTENING', 'skill')", [alice])).toMatch(/unique/i);
+    expect(await failure("insert into public.profile_skills (profile_id, name, kind) values ($1, 'Active listening', 'interest')", [alice])).toBeNull();
+    expect(await failure("insert into public.profile_skills (profile_id, name, kind) values ($1, ' padded ', 'skill')", [alice])).toMatch(/trimmed/);
+    expect(await failure("insert into public.profile_skills (profile_id, name, kind) values ($1, '<b>x</b>', 'skill')", [alice])).toMatch(/no_markup/);
+    expect(await failure("insert into public.profile_skills (profile_id, name, kind) values ($1, 'Fine', 'badge')", [alice])).toMatch(/kind_valid/);
+    expect(await failure("insert into public.profile_skills (profile_id, name, kind) values ($1, 'Impostor', 'skill')", [bob])).toMatch(/row-level security/i);
+    expect(await failure("update public.profile_skills set name = 'renamed'")).toMatch(/permission denied/i);
+  });
+
+  it("caps how many items one profile can hold", async () => {
+    await asUser(alice);
+    for (let i = 0; i < 10; i++) {
+      await db.query("insert into public.profile_skills (profile_id, name, kind) values ($1, $2, 'mentorship_area')", [alice, `Area ${i}`]);
+    }
+    expect(await failure("insert into public.profile_skills (profile_id, name, kind) values ($1, 'One too many', 'mentorship_area')", [alice])).toMatch(
+      /Limit of 10/,
+    );
+  });
+
+  it("applies the same folder rules to cover images", async () => {
+    await asUser(alice);
+    expect(await failure("insert into storage.objects (bucket_id, name) values ('covers', $1)", [`${alice}/c.jpg`])).toBeNull();
+    expect(await failure("insert into storage.objects (bucket_id, name) values ('covers', $1)", [`${bob}/c.jpg`])).toMatch(/row-level security/i);
+    await asAdmin();
+    const bucket = await db.query<{ file_size_limit: string }>("select file_size_limit from storage.buckets where id = 'covers'");
+    expect(Number(bucket.rows[0].file_size_limit)).toBe(5242880);
+  });
+
+  it("never exposes email through any profile table", async () => {
+    await asAdmin();
+    const cols = await db.query<{ table_name: string; column_name: string }>(
+      "select table_name, column_name from information_schema.columns where table_schema = 'public'",
+    );
+    expect(cols.rows.filter((c) => /email|password|token|secret/i.test(c.column_name))).toEqual([]);
+  });
+});
+
 describe("avatar storage policies", () => {
   it("allows uploads only inside the member's own folder", async () => {
     await asUser(alice);

@@ -65,6 +65,17 @@ export const CAREER_STAGES = [
   { value: "other", label: "Other" },
 ] as const;
 
+export const EMPLOYMENT_TYPES = [
+  { value: "full_time", label: "Full-time" },
+  { value: "part_time", label: "Part-time" },
+  { value: "contract", label: "Contract" },
+  { value: "internship", label: "Internship" },
+  { value: "placement", label: "Clinical placement" },
+  { value: "volunteer", label: "Volunteer" },
+  { value: "self_employed", label: "Self-employed" },
+  { value: "other", label: "Other" },
+] as const;
+
 export const PURPOSES = [
   { value: "build_network", label: "Build my professional network" },
   { value: "find_mentor", label: "Find a mentor" },
@@ -98,6 +109,15 @@ export const RESERVED_USERNAMES = [
   "settings",
   "api",
   "auth",
+  "edit",
+  "profile",
+  "profiles",
+  "new",
+  "me",
+  "about",
+  "contact",
+  "privacy",
+  "terms",
 ] as const;
 
 /** ISO 3166-1 alpha-2 codes. Display names come from Intl.DisplayNames. */

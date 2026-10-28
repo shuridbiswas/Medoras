@@ -1,5 +1,9 @@
 import { z } from "zod";
 import {
+  optionalText as optional,
+  requiredText as required,
+} from "@/lib/validation";
+import {
   CAREER_STAGES,
   COUNTRY_CODES,
   FIELDS,
@@ -8,25 +12,6 @@ import {
   RESERVED_USERNAMES,
   values,
 } from "@/features/onboarding/options";
-
-const noMarkup = /^[^<>]*$/;
-
-const required = (label: string, max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1, `Enter your ${label}.`)
-    .max(max, `Use ${max} characters or fewer.`)
-    .regex(noMarkup, "Remove < and > characters.");
-
-const optional = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max, `Use ${max} characters or fewer.`)
-    .regex(noMarkup, "Remove < and > characters.")
-    .transform((v) => (v === "" ? undefined : v))
-    .optional();
 
 export const whoSchema = z.object({
   memberType: z.enum(values(MEMBER_TYPES), {

@@ -7,6 +7,8 @@ describe("safeNextPath (open redirect protection)", () => {
     expect(safeNextPath("/onboarding")).toBe("/onboarding");
     expect(safeNextPath("/reset-password")).toBe("/reset-password");
     expect(safeNextPath("/home/settings")).toBe("/home/settings");
+    expect(safeNextPath("/profile/amina_r")).toBe("/profile/amina_r");
+    expect(safeNextPath("/settings")).toBe("/settings");
   });
 
   it("drops the query string and fragment", () => {

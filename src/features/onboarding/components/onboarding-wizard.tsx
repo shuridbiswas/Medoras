@@ -2,7 +2,12 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Camera, Check } from "lucide-react";
-import { Field, FormAlert, SubmitButton } from "@/components/forms/fields";
+import {
+  Field,
+  FormAlert,
+  SelectField,
+  SubmitButton,
+} from "@/components/forms/fields";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { completeOnboarding } from "@/features/onboarding/actions";
@@ -482,50 +487,5 @@ function Choices({
         </p>
       ) : null}
     </fieldset>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  error,
-  autoComplete,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  error?: string;
-  autoComplete?: string;
-}) {
-  const id = `select-${label.replace(/\s+/g, "-").toLowerCase()}`;
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-sm font-semibold text-maroon-900">
-        {label}
-      </Label>
-      <select
-        id={id}
-        value={value}
-        autoComplete={autoComplete}
-        onChange={(e) => onChange(e.target.value)}
-        aria-invalid={error ? true : undefined}
-        className="h-11 w-full rounded-lg border border-input bg-surface px-3 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <option value="">Select…</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      {error ? (
-        <p role="alert" className="text-xs font-medium text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </div>
   );
 }

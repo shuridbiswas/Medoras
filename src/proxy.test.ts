@@ -35,6 +35,11 @@ describe("proxy route protection", () => {
   it("redirects signed-out visitors away from private routes", async () => {
     expect(await run("/home")).toBe("/login?next=%2Fhome");
     expect(await run("/onboarding")).toBe("/login?next=%2Fonboarding");
+    expect(await run("/profile/amina_r")).toBe(
+      "/login?next=%2Fprofile%2Famina_r",
+    );
+    expect(await run("/profile/edit")).toBe("/login?next=%2Fprofile%2Fedit");
+    expect(await run("/settings")).toBe("/login?next=%2Fsettings");
     expect(await run("/home/anything/deep")).toBe(
       "/login?next=%2Fhome%2Fanything%2Fdeep",
     );
@@ -69,12 +74,17 @@ describe("proxy route protection", () => {
     expect(await run("/home")).toBeNull();
     expect(await run("/onboarding")).toBeNull();
     expect(await run("/reset-password")).toBeNull();
+    expect(await run("/profile/amina_r")).toBeNull();
+    expect(await run("/profile/edit")).toBeNull();
+    expect(await run("/settings")).toBeNull();
   });
 
   it("only runs on the auth-related routes", () => {
     expect(config.matcher).toEqual(
       expect.arrayContaining([
         "/home/:path*",
+        "/profile/:path*",
+        "/settings/:path*",
         "/onboarding/:path*",
         "/login",
         "/signup",

@@ -215,3 +215,127 @@ export function FormAlert({
     </div>
   );
 }
+
+export function SelectField({
+  label,
+  value,
+  defaultValue,
+  onChange,
+  options,
+  error,
+  autoComplete,
+  name,
+  optional,
+  placeholder = "Select…",
+}: {
+  label: string;
+  value?: string;
+  defaultValue?: string;
+  onChange?: (value: string) => void;
+  options: readonly { value: string; label: string }[];
+  error?: string;
+  autoComplete?: string;
+  name?: string;
+  optional?: boolean;
+  placeholder?: string;
+}) {
+  const id = useId();
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-sm font-semibold text-maroon-900">
+        {label}
+        {optional ? (
+          <span className="font-normal text-muted-foreground"> (optional)</span>
+        ) : null}
+      </Label>
+      <select
+        id={id}
+        name={name}
+        value={value}
+        defaultValue={defaultValue}
+        autoComplete={autoComplete}
+        onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className="h-11 w-full rounded-lg border border-input bg-surface px-3 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {error ? (
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="text-xs font-medium text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function TextAreaField({
+  label,
+  error,
+  hint,
+  optional,
+  maxLength,
+  defaultValue,
+  rows = 4,
+  ...props
+}: Omit<React.ComponentProps<"textarea">, "id"> & {
+  label: string;
+  error?: string;
+  hint?: string;
+  optional?: boolean;
+}) {
+  const id = useId();
+  const [length, setLength] = useState(String(defaultValue ?? "").length);
+  const describedBy = [error ? `${id}-error` : null, hint ? `${id}-hint` : null]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-sm font-semibold text-maroon-900">
+        {label}
+        {optional ? (
+          <span className="font-normal text-muted-foreground"> (optional)</span>
+        ) : null}
+      </Label>
+      <textarea
+        id={id}
+        rows={rows}
+        maxLength={maxLength}
+        defaultValue={defaultValue}
+        onInput={(e) => setLength(e.currentTarget.value.length)}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy || undefined}
+        className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        {...props}
+      />
+      <div className="flex justify-between gap-3 text-xs text-muted-foreground">
+        <span id={`${id}-hint`}>{hint && !error ? hint : ""}</span>
+        {maxLength ? (
+          <span aria-hidden="true">
+            {length}/{maxLength}
+          </span>
+        ) : null}
+      </div>
+      {error ? (
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="text-xs font-medium text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}

@@ -58,7 +58,7 @@ Conventions:
 - Never invent credentials. Secrets only via `.env.local` (see `.env.example`); never commit real values.
 - Before finishing work: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
-## Current scope: Phases 1 and 2 (done)
+## Current scope: Phases 1 to 3 (done)
 
 Phase 1: public welcome page at `/` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
 
@@ -73,14 +73,28 @@ Auth architecture (see README for setup and verification status):
 - Database: `supabase/migrations/`. `profiles` holds only member-visible fields; private answers live in `onboarding_preferences`; email never leaves `auth.users`. Option lists in `src/features/onboarding/options.ts` must match the SQL CHECK constraints. `supabase/tests/rls.test.ts` runs the migrations in PGlite; update it when policies change.
 - Keep the test mocks in `src/test/mocks.ts` in sync when changing Supabase calls. Untested against a live project until the README setup is done.
 
-Out of scope until later phases: feed, connections, communities, mentorship, forums, messaging, jobs, AI features.
+Phase 3: professional profiles. Routes `/profile/[username]` (tabs: Overview, Education, Experience, Skills & interests, Activity placeholder), `/profile/edit` (owner only), `/settings` (account, change password, privacy summary). `/home` and every signed-in page use `AppHeader`.
+
+Profile architecture:
+
+- Code lives in `src/features/profile/`: `schemas.ts` (zod), `actions.ts` (server actions), `queries.ts` (read), `visibility.ts`, `format.ts`, `components/` (view) and `components/edit/` (forms).
+- **Public vs private:** every `profiles` column and every row of `profile_education`, `profile_experience` and `profile_skills` is readable by any signed-in member once the owner finishes onboarding. Private data goes in owner-only tables (`onboarding_preferences`, a future `profile_settings`), never `profiles`. Email exists only in `auth.users`; `/settings` reads it from the session.
+- `toPublicProfile()` in `visibility.ts` is the whitelist that shapes what reaches the UI. A new `profiles` column stays hidden until added there, and future per-field privacy settings plug in at that one spot.
+- Location: `profiles.location_label` is a free-text general place the member chooses (city or region, max 80, optional); the UI shows it plus the country. No coordinates or addresses are ever stored. The onboarding `city` stays private.
+- Skills, interests and mentorship areas share `profile_skills` (`kind`). Mentorship flags are self-reported; the UI says so. Do not add verification badges or credentials claims until a real verification process exists.
+- Every profile action starts with `requireMember()`, scopes writes to the verified user id (never an id from the form) and relies on RLS as the second layer. Images are checked by real file bytes and size (photo 2 MB, cover 5 MB) and stored under `<user id>/<uuid>.<ext>` in the `avatars` / `covers` buckets.
+- Reserved usernames (`edit`, `profile`, `settings`, ...) are enforced in the DB constraint and `RESERVED_USERNAMES`; keep both in sync when adding top-level routes.
+- Tests: `supabase/tests/rls.test.ts` (migrations in PGlite), `src/features/profile/*.test.*`, `src/test/{mocks,db-mock}.ts` (recording Supabase doubles).
+
+Out of scope until later phases: feed (the Activity tab is a placeholder), connections, communities, mentorship matching, forums, messaging, jobs, AI features, per-field privacy settings, username changes.
 
 ## Roadmap
 
 1. **Phase 2 (done):** Supabase auth, onboarding, profile basics, RLS from day one.
-2. **Phase 3:** Professional profiles, connections, communities, home feed.
-3. **Phase 4:** Mentorship matching, forums (anonymous option), verification badges.
-4. **Phase 5:** Careers and employer profiles, articles/research, stories.
-5. **Phase 6:** Nearby communities and events, mental-health and peer-support space with human + AI-assisted moderation, reporting/blocking/muting.
+2. **Phase 3 (done):** Professional profiles.
+3. **Phase 3b:** Connections, communities, home feed.
+4. **Phase 4:** Mentorship matching, forums (anonymous option), verification badges.
+5. **Phase 5:** Careers and employer profiles, articles/research, stories.
+6. **Phase 6:** Nearby communities and events, mental-health and peer-support space with human + AI-assisted moderation, reporting/blocking/muting.
 
 Open product questions: professional verification method, anonymity vs. safety design, launch regions (privacy law and crisis resources), handling of minors, MVP cut line.

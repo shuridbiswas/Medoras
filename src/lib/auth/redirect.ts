@@ -2,7 +2,13 @@
  * Safe post-login destinations. Only same-site paths under these prefixes are allowed,
  * so `?next=` can never send a member to another site (open redirect).
  */
-const ALLOWED_PREFIXES = ["/home", "/onboarding", "/reset-password"] as const;
+const ALLOWED_PREFIXES = [
+  "/home",
+  "/onboarding",
+  "/reset-password",
+  "/profile",
+  "/settings",
+] as const;
 
 export function safeNextPath(
   next: string | null | undefined,

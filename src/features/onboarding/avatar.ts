@@ -28,10 +28,16 @@ export function sniffImage(bytes: Uint8Array) {
   return null;
 }
 
-export async function checkAvatar(file: File): Promise<AvatarCheck> {
+export async function checkImage(
+  file: File,
+  maxBytes: number,
+): Promise<AvatarCheck> {
   if (file.size === 0) return { ok: false, message: "That file is empty." };
-  if (file.size > AVATAR_MAX_BYTES) {
-    return { ok: false, message: "Choose an image under 2 MB." };
+  if (file.size > maxBytes) {
+    return {
+      ok: false,
+      message: `Choose an image under ${Math.round(maxBytes / (1024 * 1024))} MB.`,
+    };
   }
   const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   const detected = sniffImage(head);
@@ -40,3 +46,5 @@ export async function checkAvatar(file: File): Promise<AvatarCheck> {
   }
   return { ok: true, ...detected };
 }
+
+export const checkAvatar = (file: File) => checkImage(file, AVATAR_MAX_BYTES);
