@@ -16,7 +16,7 @@ export function Eyebrow({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       className={cn(
-        "text-xs font-semibold uppercase tracking-[0.16em] text-teal-700",
+        "text-xs font-semibold uppercase tracking-[0.16em] text-maroon-700",
         className,
       )}
       {...props}
@@ -42,7 +42,7 @@ export function SectionHeading({
       <Eyebrow>{eyebrow}</Eyebrow>
       <h2
         id={id}
-        className="mt-3 text-balance text-3xl font-medium leading-[1.12] text-teal-900 sm:text-4xl lg:text-[2.6rem]"
+        className="mt-3 text-balance text-3xl font-bold leading-[1.12] text-maroon-900 sm:text-4xl lg:text-[2.6rem]"
       >
         {title}
       </h2>

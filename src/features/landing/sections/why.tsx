@@ -24,19 +24,19 @@ export function Why() {
             help is treated as a strength.
           </p>
           <div>
-            <p className="text-sm font-semibold text-teal-900">
+            <p className="text-sm font-semibold text-maroon-900">
               Built for every discipline
             </p>
             <ul className="mt-3 flex flex-wrap gap-2">
               {disciplines.map((d) => (
                 <li
                   key={d}
-                  className="rounded-full border border-border bg-surface px-3 py-1 text-sm text-teal-900"
+                  className="rounded-full border border-border bg-surface px-3 py-1 text-sm text-maroon-900"
                 >
                   {d}
                 </li>
               ))}
-              <li className="rounded-full border border-dashed border-teal-500/50 px-3 py-1 text-sm text-teal-700">
+              <li className="rounded-full border border-dashed border-maroon-500/50 px-3 py-1 text-sm text-maroon-700">
                 and more
               </li>
             </ul>

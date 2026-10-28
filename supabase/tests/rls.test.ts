@@ -1,0 +1,229 @@
+// @vitest-environment node
+//
+// Applies the real migrations to an in-memory Postgres (PGlite) with minimal stand-ins for
+// Supabase's auth and storage schemas, then checks constraints and row level security.
+// This validates our SQL and policies. It does NOT replace testing against a real Supabase project.
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { PGlite } from "@electric-sql/pglite";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+const migrationsDir = path.resolve(import.meta.dirname, "../migrations");
+
+const supabaseStubs = `
+  create role anon nologin;
+  create role authenticated nologin;
+
+  create schema auth;
+  create table auth.users (
+    id uuid primary key default gen_random_uuid(),
+    email text,
+    raw_user_meta_data jsonb not null default '{}'
+  );
+  create function auth.uid() returns uuid language sql stable as $$
+    select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+  $$;
+  grant usage on schema auth to anon, authenticated;
+  revoke all on auth.users from anon, authenticated;
+
+  create schema storage;
+  create table storage.buckets (
+    id text primary key, name text, public boolean,
+    file_size_limit bigint, allowed_mime_types text[]
+  );
+  create table storage.objects (
+    id uuid primary key default gen_random_uuid(),
+    bucket_id text, name text
+  );
+  alter table storage.objects enable row level security;
+  create function storage.foldername(name text) returns text[] language sql immutable as $$
+    select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
+  $$;
+  grant usage on schema storage to authenticated;
+  grant select, insert, update, delete on storage.objects to authenticated;
+
+  grant usage on schema public to anon, authenticated;
+`;
+
+let db: PGlite;
+const alice = "00000000-0000-0000-0000-00000000000a";
+const bob = "00000000-0000-0000-0000-00000000000b";
+
+async function asUser(id: string | null) {
+  await db.exec("reset role");
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [id ?? ""]);
+  await db.exec(id ? "set role authenticated" : "set role anon");
+}
+
+async function asAdmin() {
+  await db.exec("reset role");
+}
+
+async function failure(sql: string, params: unknown[] = []) {
+  try {
+    await db.query(sql, params);
+  } catch (error) {
+    return (error as Error).message;
+  }
+  return null;
+}
+
+beforeAll(async () => {
+  db = new PGlite();
+  await db.exec(supabaseStubs);
+  for (const file of readdirSync(migrationsDir).sort()) {
+    await db.exec(readFileSync(path.join(migrationsDir, file), "utf8"));
+  }
+  await db.query(
+    "insert into auth.users (id, email, raw_user_meta_data) values ($1, 'alice@example.com', $2), ($3, 'bob@example.com', $4)",
+    [
+      alice,
+      JSON.stringify({ first_name: "Alice", last_name: "Nguyen" }),
+      bob,
+      JSON.stringify({ first_name: "Bob" }),
+    ],
+  );
+});
+
+afterAll(async () => {
+  await db.close();
+});
+
+describe("new user provisioning", () => {
+  it("creates a profile and private preferences from signup metadata", async () => {
+    await asAdmin();
+    const profile = await db.query<{ first_name: string; last_name: string; onboarding_completed: boolean }>(
+      "select first_name, last_name, onboarding_completed from public.profiles where id = $1",
+      [alice],
+    );
+    expect(profile.rows[0]).toEqual({ first_name: "Alice", last_name: "Nguyen", onboarding_completed: false });
+    const prefs = await db.query("select 1 from public.onboarding_preferences where user_id = $1", [alice]);
+    expect(prefs.rows).toHaveLength(1);
+  });
+
+  it("never stores email or credentials in the profiles table", async () => {
+    await asAdmin();
+    const cols = await db.query<{ column_name: string }>(
+      "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'profiles'",
+    );
+    const names = cols.rows.map((r) => r.column_name);
+    expect(names).not.toContain("email");
+    expect(names.some((n) => /password|token|secret/.test(n))).toBe(false);
+  });
+});
+
+describe("row level security", () => {
+  it("blocks anonymous visitors entirely", async () => {
+    await asUser(null);
+    expect(await failure("select * from public.profiles")).toMatch(/permission denied/i);
+    expect(await failure("select * from public.onboarding_preferences")).toMatch(/permission denied/i);
+  });
+
+  it("lets members see their own profile but not an incomplete one belonging to someone else", async () => {
+    await asUser(alice);
+    const rows = await db.query<{ id: string }>("select id from public.profiles");
+    expect(rows.rows.map((r) => r.id)).toEqual([alice]);
+  });
+
+  it("shows other members a profile once onboarding is complete", async () => {
+    await asAdmin();
+    await db.query(
+      `update public.profiles set username = 'bob_b', member_type = 'educator', fields = array['nursing'],
+         career_stage = 'mid_career', country = 'CA', onboarding_completed = true where id = $1`,
+      [bob],
+    );
+    await asUser(alice);
+    const rows = await db.query<{ id: string }>("select id from public.profiles order by id");
+    expect(rows.rows.map((r) => r.id)).toEqual([alice, bob]);
+  });
+
+  it("does not let a member update someone else's profile", async () => {
+    await asUser(alice);
+    const result = await db.query("update public.profiles set bio = 'hacked' where id = $1 returning id", [bob]);
+    expect(result.rows).toHaveLength(0);
+    await asAdmin();
+    const bio = await db.query<{ bio: string | null }>("select bio from public.profiles where id = $1", [bob]);
+    expect(bio.rows[0].bio).toBeNull();
+  });
+
+  it("lets a member update their own profile", async () => {
+    await asUser(alice);
+    const result = await db.query("update public.profiles set headline = 'Student nurse' where id = $1 returning id", [alice]);
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it("prevents changing the profile id or reassigning ownership", async () => {
+    await asUser(alice);
+    expect(await failure("update public.profiles set id = $1 where id = $2", [bob, alice])).toMatch(/permission denied/i);
+  });
+
+  it("does not allow members to insert or delete profiles directly", async () => {
+    await asUser(alice);
+    expect(
+      await failure("insert into public.profiles (id, first_name) values (gen_random_uuid(), 'Fake')"),
+    ).toMatch(/permission denied/i);
+    expect(await failure("delete from public.profiles where id = $1", [alice])).toMatch(/permission denied/i);
+  });
+
+  it("keeps onboarding preferences private to their owner", async () => {
+    await asUser(alice);
+    const rows = await db.query<{ user_id: string }>("select user_id from public.onboarding_preferences");
+    expect(rows.rows.map((r) => r.user_id)).toEqual([alice]);
+    const update = await db.query("update public.onboarding_preferences set city = 'x' where user_id = $1 returning 1", [bob]);
+    expect(update.rows).toHaveLength(0);
+  });
+
+  it("exposes no authentication data or provisioning function to members", async () => {
+    await asUser(alice);
+    expect(await failure("select email from auth.users")).toMatch(/permission denied/i);
+    expect(await failure("select private.handle_new_user()")).toMatch(/permission denied/i);
+  });
+});
+
+describe("constraints", () => {
+  it("enforces unique usernames", async () => {
+    await asUser(alice);
+    expect(await failure("update public.profiles set username = 'bob_b' where id = $1", [alice])).toMatch(/unique/i);
+  });
+
+  it("rejects malformed and reserved usernames", async () => {
+    await asUser(alice);
+    expect(await failure("update public.profiles set username = 'Bad Name' where id = $1", [alice])).toMatch(/profiles_username_format/);
+    expect(await failure("update public.profiles set username = 'ab' where id = $1", [alice])).toMatch(/profiles_username_format/);
+    expect(await failure("update public.profiles set username = 'admin' where id = $1", [alice])).toMatch(/profiles_username_not_reserved/);
+  });
+
+  it("rejects values outside the allowed option lists", async () => {
+    await asUser(alice);
+    expect(await failure("update public.profiles set member_type = 'wizard' where id = $1", [alice])).toMatch(/member_type_valid/);
+    expect(await failure("update public.profiles set fields = array['astrology'] where id = $1", [alice])).toMatch(/fields_valid/);
+    expect(await failure("update public.profiles set country = 'canada' where id = $1", [alice])).toMatch(/country_format/);
+    expect(await failure("update public.onboarding_preferences set purposes = array['spam'] where user_id = $1", [alice])).toMatch(/purposes_valid/);
+  });
+
+  it("will not mark onboarding complete without the essentials", async () => {
+    await asUser(alice);
+    expect(await failure("update public.profiles set onboarding_completed = true where id = $1", [alice])).toMatch(
+      /completed_requires_essentials/,
+    );
+  });
+});
+
+describe("avatar storage policies", () => {
+  it("allows uploads only inside the member's own folder", async () => {
+    await asUser(alice);
+    expect(await failure("insert into storage.objects (bucket_id, name) values ('avatars', $1)", [`${alice}/a.png`])).toBeNull();
+    expect(await failure("insert into storage.objects (bucket_id, name) values ('avatars', $1)", [`${bob}/a.png`])).toMatch(
+      /row-level security/i,
+    );
+  });
+
+  it("limits the bucket size and mime types", async () => {
+    await asAdmin();
+    const bucket = await db.query<{ file_size_limit: string; allowed_mime_types: string[] }>(
+      "select file_size_limit, allowed_mime_types from storage.buckets where id = 'avatars'",
+    );
+    expect(Number(bucket.rows[0].file_size_limit)).toBe(2097152);
+    expect(bucket.rows[0].allowed_mime_types).toEqual(["image/jpeg", "image/png", "image/webp"]);
+  });
+});

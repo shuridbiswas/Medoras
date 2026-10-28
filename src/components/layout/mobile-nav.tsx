@@ -34,7 +34,7 @@ export function MobileNav() {
       </SheetTrigger>
       <SheetContent side="right" className="bg-canvas p-0">
         <SheetHeader className="border-b border-border px-6 py-5">
-          <SheetTitle className="font-display text-xl text-teal-900">
+          <SheetTitle className="font-display text-xl text-maroon-900">
             Medoras
           </SheetTitle>
         </SheetHeader>
@@ -44,7 +44,7 @@ export function MobileNav() {
               key={link.href}
               href={link.href}
               onClick={close}
-              className="rounded-lg px-3 py-3 text-base font-medium text-teal-900 transition-colors hover:bg-teal-50"
+              className="rounded-lg px-3 py-3 text-base font-medium text-maroon-900 transition-colors hover:bg-maroon-50"
             >
               {link.label}
             </Link>

@@ -19,11 +19,11 @@ Audience: nursing, medicine, psychology, social work, pharmacy, physiotherapy, o
 
 ### Brand and design
 
-Credible, modern, welcoming and elegant; professional without being cold. Warm paper neutrals, deep teal ink, one clay accent. Fraunces (display) + Public Sans (body). Avoid generic SaaS-landing aesthetics, heavy gradients, glassmorphism, large emojis, stock medical imagery, and copying any existing network's look. Illustrative UI must be labelled as illustrative, never presented as live activity.
+Credible, modern, welcoming and elegant; professional without being cold. White and rose-tinted neutrals with a maroon primary (`maroon-50..900` tokens). Plus Jakarta Sans (headings) + Inter (body). Product-style UI cards (profile, strength ring, goals) in the manner of the reference mock. Avoid generic SaaS-landing aesthetics, heavy gradients, glassmorphism, large emojis, stock medical imagery, and copying any existing network's look. Illustrative UI must be labelled as illustrative, never presented as live activity.
 
 ## Stack
 
-Next.js (App Router) 16, React 19, TypeScript strict, Tailwind CSS v4, shadcn/ui (base-nova style, Base UI primitives), Lucide icons, Supabase (auth, Postgres, storage; Phase 2+), Vitest + Testing Library, ESLint. Vercel-compatible.
+Next.js (App Router) 16, React 19, TypeScript strict, Tailwind CSS v4, shadcn/ui (base-nova style, Base UI primitives), Lucide icons, Supabase (auth, Postgres, storage) via @supabase/ssr, zod, Vitest + Testing Library + PGlite, ESLint. Vercel-compatible.
 
 Note: this Next.js version has breaking changes. `AGENTS.md` points at the bundled docs in `node_modules/next/dist/docs/`; read the relevant guide before using an unfamiliar API. Known gotchas: `new Date()` in a prerendered component fails the build; `searchParams` is a Promise; use the global `LayoutProps<"/">` helper types.
 
@@ -39,14 +39,15 @@ src/
   features/<name>/     Feature-oriented code (landing now; auth, profiles, mentorship, etc. later)
   lib/
     site.ts            Site config, navigation and footer links
-    supabase/          Typed browser/server clients (not used until Phase 2)
+    supabase/          Browser, server and proxy Supabase clients, env, session-cookie policy
+    auth/              Data access layer (requireUser...) and safe redirects
     utils.ts           cn()
 ```
 
 Conventions:
 
 - Server Components by default; add `"use client"` only for interaction (e.g. `mobile-nav.tsx`).
-- Design tokens live in `src/app/globals.css` (`--ink`, `--canvas`, `--surface`, `--sand`, `--clay`, `--teal-50..900`, mapped to shadcn variables). Use token classes (`text-teal-900`, `bg-sand`), not raw hex, in components.
+- Design tokens live in `src/app/globals.css` (`--ink`, `--canvas`, `--surface`, `--sand`, `--clay`, `--maroon-50..900`, mapped to shadcn variables). Use token classes (`text-maroon-900`, `bg-sand`), not raw hex, in components.
 - shadcn components here use Base UI: compose links with `render={<Link href="..." />}`, not `asChild`.
 - Keep copy and structured content in `features/<name>/content.ts`, not buried in JSX.
 - Accessibility is a requirement: semantic landmarks, labelled sections, visible focus, 4.5:1 contrast, reduced-motion support.
@@ -57,15 +58,26 @@ Conventions:
 - Never invent credentials. Secrets only via `.env.local` (see `.env.example`); never commit real values.
 - Before finishing work: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
-## Current scope: Phase 1 (done)
+## Current scope: Phases 1 and 2 (done)
 
-Public welcome page at `/` plus informative placeholder routes: `/login` (no real auth), `/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`. Legal pages are explicit placeholders, not real policies. Supabase utilities and `.env.example` are prepared but unused.
+Phase 1: public welcome page at `/` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
 
-Out of scope until later phases: authentication, profiles, mentorship, forums, messaging, jobs, AI features.
+Phase 2: Supabase email/password auth and onboarding. Routes `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/onboarding`, and a minimal protected `/home` (no feed yet).
+
+Auth architecture (see README for setup and verification status):
+
+- `src/proxy.ts` (Next 16's replacement for middleware) refreshes the session and redirects; it is not the only gate. Every private page/action calls `requireUser` / `requireMember` / `requireOnboardingPending` from `src/lib/auth/session.ts`.
+- `src/lib/supabase/{client,server,proxy}.ts` are the only places that create Supabase clients. Only the publishable key is ever used; never add the secret/service_role key to the app.
+- Server actions in `src/features/*/actions.ts` validate all input with zod (`schemas.ts`) before touching Supabase. Redirect targets go through `safeNextPath`.
+- Pages that read cookies or `searchParams` render their dynamic part inside `<Suspense>` (Cache Components requirement).
+- Database: `supabase/migrations/`. `profiles` holds only member-visible fields; private answers live in `onboarding_preferences`; email never leaves `auth.users`. Option lists in `src/features/onboarding/options.ts` must match the SQL CHECK constraints. `supabase/tests/rls.test.ts` runs the migrations in PGlite; update it when policies change.
+- Keep the test mocks in `src/test/mocks.ts` in sync when changing Supabase calls. Untested against a live project until the README setup is done.
+
+Out of scope until later phases: feed, connections, communities, mentorship, forums, messaging, jobs, AI features.
 
 ## Roadmap
 
-1. **Phase 2:** Supabase auth (sign up, sign in, sessions, middleware), `/login`, onboarding, profile basics, RLS from day one.
+1. **Phase 2 (done):** Supabase auth, onboarding, profile basics, RLS from day one.
 2. **Phase 3:** Professional profiles, connections, communities, home feed.
 3. **Phase 4:** Mentorship matching, forums (anonymous option), verification badges.
 4. **Phase 5:** Careers and employer profiles, articles/research, stories.

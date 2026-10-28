@@ -1,0 +1,11 @@
+<h2>Reset your Medoras password</h2>
+
+<p>We received a request to reset your password. Use the link below to choose a new one.</p>
+
+<p>
+  <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
+    Reset password
+  </a>
+</p>
+
+<p>If you didn't ask for this, you can ignore this email. Your password won't change.</p>

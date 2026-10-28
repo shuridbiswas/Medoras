@@ -1,14 +1,14 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/database.types";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
-/** Browser Supabase client. Phase 2+ only; the welcome page does not use it. */
+/** Browser Supabase client (Client Components). Uses the publishable key only. */
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) {
+  const env = getSupabaseEnv();
+  if (!env) {
     throw new Error(
       "Supabase is not configured. Copy .env.example to .env.local and fill in your project values.",
     );
   }
-  return createBrowserClient<Database>(url, key);
+  return createBrowserClient<Database>(env.url, env.key);
 }

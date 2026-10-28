@@ -2,7 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { LinkButton } from "@/components/ui/link-button";
 import { Container, Eyebrow } from "@/components/layout/section";
 import { authLinks } from "@/lib/site";
-import { HeroConstellation } from "@/features/landing/hero-constellation";
+import { HeroPreview } from "@/features/landing/hero-preview";
 
 export function Hero() {
   return (
@@ -12,18 +12,17 @@ export function Hero() {
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-40 -top-40 size-[34rem] rounded-full bg-teal-100/60 blur-3xl"
+        className="pointer-events-none absolute -right-40 -top-40 size-[34rem] rounded-full bg-maroon-50 blur-3xl"
       />
       <Container className="relative grid items-center gap-12 py-16 sm:py-20 lg:grid-cols-[1.05fr_1fr] lg:gap-8 lg:py-28">
         <div>
           <Eyebrow>For healthcare and social services</Eyebrow>
           <h1
             id="hero-heading"
-            className="mt-5 text-balance text-[2.6rem] font-medium leading-[1.04] text-teal-900 sm:text-6xl lg:text-[4.1rem]"
+            className="mt-5 text-balance text-[2.6rem] font-bold leading-[1.04] text-maroon-900 sm:text-6xl lg:text-[4.1rem]"
           >
             Your Community.{" "}
-            <span className="italic text-teal-600">Your Career.</span> Your
-            Journey.
+            <span className="text-maroon-600">Your Career.</span> Your Journey.
           </h1>
           <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
             Medoras connects students, graduates and professionals across
@@ -47,7 +46,7 @@ export function Hero() {
             Connect. Learn. Grow. Belong.
           </p>
         </div>
-        <HeroConstellation />
+        <HeroPreview />
       </Container>
     </section>
   );

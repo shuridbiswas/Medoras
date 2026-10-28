@@ -17,7 +17,7 @@ export const navLinks = [
 
 export const authLinks = {
   signIn: "/login",
-  join: "/login?intent=join",
+  join: "/signup",
 } as const;
 
 export const footerLinks = [

@@ -1,28 +1,45 @@
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/supabase/database.types";
+import { getSupabaseEnv } from "@/lib/supabase/env";
+import {
+  applySessionPolicy,
+  SESSION_ONLY_COOKIE,
+} from "@/lib/supabase/session-cookie";
 
-/** Server Supabase client (Server Components, Route Handlers, Server Actions). */
-export async function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) {
+/**
+ * Server Supabase client for Server Components, Route Handlers and Server Actions.
+ * Create one per request; it reads and writes the request's auth cookies.
+ *
+ * `sessionOnly` overrides the cookie flag, for the moment a login action has just
+ * decided it but the flag cookie has not round-tripped yet.
+ */
+export async function createClient(options: { sessionOnly?: boolean } = {}) {
+  const env = getSupabaseEnv();
+  if (!env) {
     throw new Error(
       "Supabase is not configured. Copy .env.example to .env.local and fill in your project values.",
     );
   }
   const cookieStore = await cookies();
+  const sessionOnly =
+    options.sessionOnly ?? cookieStore.get(SESSION_ONLY_COOKIE)?.value === "1";
 
-  return createServerClient<Database>(url, key, {
+  return createServerClient<Database>(env.url, env.key, {
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (cookiesToSet) => {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
+          cookiesToSet.forEach(({ name, value, options: cookieOptions }) =>
+            cookieStore.set(
+              name,
+              value,
+              applySessionPolicy(cookieOptions, sessionOnly),
+            ),
           );
         } catch {
-          // Called from a Server Component; session refresh is handled in Phase 2.
+          // Called from a Server Component, which cannot write cookies. The proxy refreshes sessions.
         }
       },
     },

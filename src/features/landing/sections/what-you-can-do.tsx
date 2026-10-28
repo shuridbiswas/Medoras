@@ -27,11 +27,13 @@ export function WhatYouCanDo() {
                 i % 2 === 1 ? "sm:border-l sm:pl-8" : ""
               }`}
             >
-              <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 transition-colors group-hover:bg-teal-800 group-hover:text-white">
+              <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-maroon-50 text-maroon-700 transition-colors group-hover:bg-maroon-800 group-hover:text-white">
                 <f.icon className="size-5" aria-hidden="true" />
               </span>
               <div>
-                <h3 className="text-xl font-medium text-teal-900">{f.title}</h3>
+                <h3 className="text-xl font-semibold text-maroon-900">
+                  {f.title}
+                </h3>
                 <p className="mt-2 text-[0.95rem] leading-relaxed text-muted-foreground">
                   {f.description}
                 </p>

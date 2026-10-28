@@ -7,17 +7,17 @@ export function Mentorship() {
     <section
       id="mentorship"
       aria-labelledby="mentorship-heading"
-      className="bg-teal-900 py-20 text-white sm:py-28"
+      className="bg-maroon-800 py-20 text-white sm:py-28"
     >
       <Container className="grid items-center gap-14 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
         <div>
-          <Eyebrow className="text-teal-200">Mentorship</Eyebrow>
+          <Eyebrow className="text-maroon-200">Mentorship</Eyebrow>
           <h2
             id="mentorship-heading"
-            className="mt-3 text-balance text-4xl font-medium leading-[1.08] sm:text-5xl"
+            className="mt-3 text-balance text-4xl font-bold leading-[1.08] sm:text-5xl"
           >
             Every professional was once a{" "}
-            <span className="italic text-teal-200">beginner.</span>
+            <span className="text-maroon-200">beginner.</span>
           </h2>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
             Medoras will connect students and recent graduates with experienced
@@ -41,7 +41,7 @@ export function Mentorship() {
           className="relative rounded-3xl border border-white/10 bg-white/[0.04] p-8 sm:p-10"
           aria-label="How mentor matching will work"
         >
-          <figcaption className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-200">
+          <figcaption className="text-xs font-semibold uppercase tracking-[0.16em] text-maroon-200">
             How matching will work
           </figcaption>
           <ol className="mt-6 space-y-7">
@@ -60,7 +60,7 @@ export function Mentorship() {
               ],
             ].map(([title, text], i) => (
               <li key={title} className="flex gap-4">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 font-display text-sm text-teal-100">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 font-display text-sm text-maroon-100">
                   {i + 1}
                 </span>
                 <div>

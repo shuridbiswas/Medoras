@@ -21,7 +21,7 @@ export function SiteFooter() {
             <Link
               key={link.href}
               href={link.href}
-              className="w-fit text-teal-900/80 underline-offset-4 transition-colors hover:text-teal-900 hover:underline"
+              className="w-fit text-maroon-900/80 underline-offset-4 transition-colors hover:text-maroon-900 hover:underline"
             >
               {link.label}
             </Link>

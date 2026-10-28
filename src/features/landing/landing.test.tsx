@@ -15,9 +15,9 @@ describe("landing content", () => {
     }
   });
 
-  it("routes auth links to /login", () => {
+  it("routes sign in to /login and join to /signup", () => {
     expect(authLinks.signIn).toBe("/login");
-    expect(authLinks.join.startsWith("/login")).toBe(true);
+    expect(authLinks.join).toBe("/signup");
   });
 });
 

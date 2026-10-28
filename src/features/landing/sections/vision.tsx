@@ -11,11 +11,11 @@ export function Vision() {
         <Eyebrow>Our vision</Eyebrow>
         <h2
           id="vision-heading"
-          className="mt-5 text-balance text-3xl font-medium leading-[1.2] text-teal-900 sm:text-5xl"
+          className="mt-5 text-balance text-3xl font-bold leading-[1.2] text-maroon-900 sm:text-5xl"
         >
           A world where knowledge is shared, opportunities are accessible, and
           asking for help is a{" "}
-          <span className="italic text-teal-600">sign of strength.</span>
+          <span className="text-maroon-600">sign of strength.</span>
         </h2>
         <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground">
           We imagine healthcare and social services students who never feel lost
