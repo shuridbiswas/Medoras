@@ -47,7 +47,7 @@ const sections = [
 
 export default function EditProfilePage() {
   return (
-    <div className="min-h-dvh bg-sand/60">
+    <div className="min-h-dvh bg-sand/60 pb-20 md:pb-0">
       <Suspense
         fallback={
           <div
@@ -77,7 +77,7 @@ async function EditContent() {
 
   return (
     <>
-      <AppHeader username={me.username} />
+      <AppHeader member={me} />
       <main
         id="main"
         className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-8"

@@ -5,7 +5,6 @@ import { ProfileHeader } from "@/features/profile/components/profile-header";
 import { ProfileTabs } from "@/features/profile/components/profile-tabs";
 import {
   AboutSection,
-  ActivitySection,
   CompletenessCard,
   EducationSection,
   ExperienceSection,
@@ -185,14 +184,10 @@ describe("empty states and owner nudges", () => {
     render(
       <>
         <EducationSection items={[]} isOwner={false} firstName="Amina" />
-        <ActivitySection isOwner={false} firstName="Amina" />
       </>,
     );
     expect(
       screen.getByText(/Amina hasn't added education yet/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Amina's posts will show up here/),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });

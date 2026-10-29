@@ -7,6 +7,7 @@ export type Op = {
   kind: "select" | "insert" | "update" | "delete";
   payload?: unknown;
   filters: [string, unknown][];
+  limit?: number;
 };
 
 type Result = {
@@ -21,12 +22,23 @@ export function makeDb(handler: Handler = () => undefined) {
   const resolve = (op: Op): Result => {
     const custom = handler(op);
     if (custom) return { data: null, error: null, ...custom };
-    return { data: op.kind === "update" ? [{ id: "row" }] : null, error: null };
+    return { data: op.kind === "update" || op.kind === "delete" ? [{ id: "row" }] : null, error: null };
   };
 
   const from = (table: string) => {
     const op: Op = { table, kind: "select", filters: [] };
     ops.push(op);
+    // .single() / .maybeSingle() stay chainable (overrideTypes) and awaitable, like the real builder.
+    const single = () => {
+      const result = {
+        overrideTypes: () => result,
+        then: (
+          onFulfilled: (r: Result) => unknown,
+          onRejected?: (e: unknown) => unknown,
+        ) => Promise.resolve(resolve(op)).then(onFulfilled, onRejected),
+      };
+      return result;
+    };
     const chain = {
       select: () => chain,
       update: (payload: unknown) => {
@@ -51,8 +63,34 @@ export function makeDb(handler: Handler = () => undefined) {
         op.filters.push([column, value]);
         return chain;
       },
+      neq: (column: string, value: unknown) => {
+        op.filters.push([`${column}!=`, value]);
+        return chain;
+      },
+      not: (column: string, _op: string, value: unknown) => {
+        op.filters.push([`${column} not`, value]);
+        return chain;
+      },
+      gte: (column: string, value: unknown) => {
+        op.filters.push([`${column}>=`, value]);
+        return chain;
+      },
+      contains: (column: string, value: unknown) => {
+        op.filters.push([`${column} contains`, value]);
+        return chain;
+      },
+      or: (expression: string) => {
+        op.filters.push(["or", expression]);
+        return chain;
+      },
+      limit: (n: number) => {
+        op.limit = n;
+        return chain;
+      },
+      overrideTypes: () => chain,
       order: () => chain,
-      maybeSingle: async () => resolve(op),
+      single: () => single(),
+      maybeSingle: () => single(),
       then: (
         onFulfilled: (r: Result) => unknown,
         onRejected?: (e: unknown) => unknown,

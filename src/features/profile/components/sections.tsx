@@ -5,7 +5,6 @@ import {
   GraduationCap,
   HandHeart,
   Lightbulb,
-  MessagesSquare,
   Sparkles,
   Target,
 } from "lucide-react";
@@ -373,27 +372,6 @@ export function SkillsSection({
         Skills and interests are self-reported and have not been verified.
       </p>
     </div>
-  );
-}
-
-/** Placeholder until the home feed exists; posts will be listed here later. */
-export function ActivitySection({
-  isOwner,
-  firstName,
-}: {
-  isOwner: boolean;
-  firstName: string;
-}) {
-  return (
-    <EmptyState
-      icon={MessagesSquare}
-      title="Posts will appear here"
-      description={
-        isOwner
-          ? "Once the Medoras feed opens, the things you share will show up on your profile."
-          : `Once the Medoras feed opens, ${firstName}'s posts will show up here.`
-      }
-    />
   );
 }
 

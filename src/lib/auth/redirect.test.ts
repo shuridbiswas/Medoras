@@ -9,6 +9,7 @@ describe("safeNextPath (open redirect protection)", () => {
     expect(safeNextPath("/home/settings")).toBe("/home/settings");
     expect(safeNextPath("/profile/amina_r")).toBe("/profile/amina_r");
     expect(safeNextPath("/settings")).toBe("/settings");
+    expect(safeNextPath("/search?q=amina")).toBe("/search");
   });
 
   it("drops the query string and fragment", () => {

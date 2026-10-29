@@ -8,6 +8,7 @@ const ALLOWED_PREFIXES = [
   "/reset-password",
   "/profile",
   "/settings",
+  "/search",
 ] as const;
 
 export function safeNextPath(

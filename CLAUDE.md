@@ -58,11 +58,11 @@ Conventions:
 - Never invent credentials. Secrets only via `.env.local` (see `.env.example`); never commit real values.
 - Before finishing work: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
-## Current scope: Phases 1 to 3 (done)
+## Current scope: Phases 1 to 4 (done)
 
 Phase 1: public welcome page at `/` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
 
-Phase 2: Supabase email/password auth and onboarding. Routes `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/onboarding`, and a minimal protected `/home` (no feed yet).
+Phase 2: Supabase email/password auth and onboarding. Routes `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/onboarding`, and the protected `/home` (the community feed, Phase 4).
 
 Auth architecture (see README for setup and verification status):
 
@@ -86,15 +86,31 @@ Profile architecture:
 - Reserved usernames (`edit`, `profile`, `settings`, ...) are enforced in the DB constraint and `RESERVED_USERNAMES`; keep both in sync when adding top-level routes.
 - Tests: `supabase/tests/rls.test.ts` (migrations in PGlite), `src/features/profile/*.test.*`, `src/test/{mocks,db-mock}.ts` (recording Supabase doubles).
 
-Out of scope until later phases: feed (the Activity tab is a placeholder), connections, communities, mentorship matching, forums, messaging, jobs, AI features, per-field privacy settings, username changes.
+Phase 4: member home and community feed. `/home` is a three-column app page (left: profile card + navigation; center: greeting, composer, category filters, feed; right: new members, fields to explore, active categories, self-reported mentors, planned features). Also `/search` (member search by name/username, field, or open-to-mentor) and informational placeholders `/communities`, `/mentorship`, `/careers`, `/saved`. The profile Activity tab lists the member's real posts.
+
+Feed architecture:
+
+- Code lives in `src/features/feed/`: `options.ts` (7 categories, limits), `schemas.ts` (zod, cursor pattern), `queries.ts` (reads), `actions.ts` (server actions), `types.ts`, `components/`. Home rails and nav config are in `src/features/home/`. Shared pieces: `components/layout/{app-header,user-menu,mobile-tab-bar}.tsx`, `components/member-avatar.tsx`, `components/relative-time.tsx`.
+- Tables: `posts`, `post_likes` (primary key post+user), `post_comments` (migration `20261030000001`). Categories and length limits are CHECK constraints; keep `POST_CATEGORIES` in sync with `posts_category_valid`.
+- **Ownership:** every action starts with `requireMember()`. Author ids come only from the verified session, never from a form or argument, and edits/deletes add `.eq("author_id", user.id)`. RLS enforces it again (insert needs `author_id = auth.uid()`; update/delete only own rows; no UPDATE grant on comments or likes; column grants stop changing author or timestamps). Zero affected rows is reported as an error, never as success.
+- **Counts** are computed from rows (`post_likes(count)` embeds), never stored, so they cannot drift. Like/unlike is idempotent; the client updates optimistically and rolls back on failure, then shows the server's count.
+- **Pagination** is keyset (`created_at desc, id desc`) with an opaque cursor `"<created_at>|<id>"`, validated by `CURSOR_PATTERN` before it is put in a PostgREST filter. The server renders page one; `FeedList` (client) loads older pages through `loadMorePosts`. `FeedSection` re-keys the list whenever page one changes so extra pages never go stale.
+- Forms that can fail (composer, post edit) use **controlled** fields because React 19 resets uncontrolled forms after every submit, which would discard a member's text on error.
+- DB abuse guards: 20 posts and 60 comments per author per rolling hour (trigger `private.enforce_feed_rate_limit`). These are spam limits, not moderation.
+- Safety copy lives in `SafetyNotice` and `/community-guidelines`: no identifiable patient information, member posts are not medical advice, and verification and automated moderation are NOT active. Keep these statements true and update them when that changes. Reporting and blocking are not built.
+- Right-rail data is real or empty: no fabricated members or engagement. `supabase/dev-seed/posts.sql` is a development-only script that adds labelled "[Development sample]" posts under an existing member; it creates no people, likes or comments.
+- Tests: `supabase/tests/feed.test.ts` (policies in PGlite), `src/features/feed/{actions,queries,feed}.test.*`, `components/feed-components.test.tsx`, `src/components/layout/layout.test.tsx`.
+
+Out of scope until later phases: connections, communities, mentorship matching, forums, messaging, jobs, reporting/blocking/moderation tooling, saved posts, post media, AI features, per-field privacy settings, username changes.
 
 ## Roadmap
 
 1. **Phase 2 (done):** Supabase auth, onboarding, profile basics, RLS from day one.
 2. **Phase 3 (done):** Professional profiles.
-3. **Phase 3b:** Connections, communities, home feed.
-4. **Phase 4:** Mentorship matching, forums (anonymous option), verification badges.
-5. **Phase 5:** Careers and employer profiles, articles/research, stories.
-6. **Phase 6:** Nearby communities and events, mental-health and peer-support space with human + AI-assisted moderation, reporting/blocking/muting.
+3. **Phase 4 (done):** Member home page and community feed (posts, likes, comments, categories, search).
+4. **Phase 4b:** Connections, communities, reporting and blocking, saved posts.
+5. **Phase 5:** Mentorship matching, forums (anonymous option), verification badges.
+6. **Phase 6:** Careers and employer profiles, articles/research, stories.
+7. **Phase 7:** Nearby communities and events, mental-health and peer-support space with human + AI-assisted moderation, reporting/blocking/muting.
 
 Open product questions: professional verification method, anonymity vs. safety design, launch regions (privacy law and crisis resources), handling of minors, MVP cut line.

@@ -8,6 +8,11 @@ const PRIVATE_PREFIXES = [
   "/reset-password",
   "/profile",
   "/settings",
+  "/search",
+  "/communities",
+  "/mentorship",
+  "/careers",
+  "/saved",
 ];
 /** Pages only for signed-out visitors. */
 const GUEST_ONLY = ["/login", "/signup", "/forgot-password"];
@@ -53,6 +58,11 @@ export const config = {
     "/home/:path*",
     "/profile/:path*",
     "/settings/:path*",
+    "/search/:path*",
+    "/communities/:path*",
+    "/mentorship/:path*",
+    "/careers/:path*",
+    "/saved/:path*",
     "/onboarding/:path*",
     "/reset-password/:path*",
     "/login",

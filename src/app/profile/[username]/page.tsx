@@ -7,13 +7,13 @@ import { ProfileHeader } from "@/features/profile/components/profile-header";
 import { ProfileTabs } from "@/features/profile/components/profile-tabs";
 import {
   AboutSection,
-  ActivitySection,
   CompletenessCard,
   EducationSection,
   ExperienceSection,
   MentorshipCard,
   SkillsSection,
 } from "@/features/profile/components/sections";
+import { ProfileActivity } from "@/features/feed/components/profile-activity";
 import { getProfileByUsername } from "@/features/profile/queries";
 import { toPublicProfile } from "@/features/profile/visibility";
 
@@ -26,7 +26,7 @@ type Props = { params: Promise<{ username: string }> };
 
 export default function ProfilePage({ params }: Props) {
   return (
-    <div className="min-h-dvh bg-sand/60">
+    <div className="min-h-dvh bg-sand/60 pb-20 md:pb-0">
       <Suspense fallback={<ProfileFallback />}>
         <ProfileContent params={params} />
       </Suspense>
@@ -58,7 +58,7 @@ async function ProfileContent({ params }: Props) {
 
   return (
     <>
-      <AppHeader username={me.username} />
+      <AppHeader member={me} />
       <main
         id="main"
         className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8"
@@ -138,7 +138,9 @@ async function ProfileContent({ params }: Props) {
               id: "activity",
               label: "Activity",
               panel: (
-                <ActivitySection
+                <ProfileActivity
+                  viewerId={user.id}
+                  authorId={profile.id}
                   isOwner={isOwner}
                   firstName={profile.first_name}
                 />

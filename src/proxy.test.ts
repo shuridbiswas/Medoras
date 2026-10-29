@@ -45,6 +45,13 @@ describe("proxy route protection", () => {
     );
   });
 
+  it("protects the search page and the not-yet-built module pages", async () => {
+    for (const path of ["/search", "/communities", "/mentorship", "/careers", "/saved"]) {
+      expect(await run(path)).toBe(`/login?next=${encodeURIComponent(path)}`);
+    }
+    expect(await run("/search?q=amina")).toBe("/login?next=%2Fsearch");
+  });
+
   it("treats /reset-password without a session as an invalid link", async () => {
     expect(await run("/reset-password")).toBe(
       "/forgot-password?error=link_invalid",
@@ -77,6 +84,9 @@ describe("proxy route protection", () => {
     expect(await run("/profile/amina_r")).toBeNull();
     expect(await run("/profile/edit")).toBeNull();
     expect(await run("/settings")).toBeNull();
+    for (const path of ["/search", "/communities", "/mentorship", "/careers", "/saved"]) {
+      expect(await run(path)).toBeNull();
+    }
   });
 
   it("only runs on the auth-related routes", () => {
@@ -85,6 +95,11 @@ describe("proxy route protection", () => {
         "/home/:path*",
         "/profile/:path*",
         "/settings/:path*",
+        "/search/:path*",
+        "/communities/:path*",
+        "/mentorship/:path*",
+        "/careers/:path*",
+        "/saved/:path*",
         "/onboarding/:path*",
         "/login",
         "/signup",

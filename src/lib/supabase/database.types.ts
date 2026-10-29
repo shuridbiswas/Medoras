@@ -76,6 +76,30 @@ export type SkillRow = {
   created_at: string;
 };
 
+export type PostRow = {
+  id: string;
+  author_id: string;
+  category: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  edited_at: string | null;
+};
+
+export type PostLikeRow = {
+  post_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+export type PostCommentRow = {
+  id: string;
+  post_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+};
+
 type Updatable<Row, Omit_ extends keyof Row> = Partial<Omit<Row, Omit_>>;
 
 export type Database = {
@@ -115,6 +139,24 @@ export type Database = {
       profile_skills: {
         Row: SkillRow;
         Insert: Omit<SkillRow, "id" | "created_at">;
+        Update: never;
+        Relationships: [];
+      };
+      posts: {
+        Row: PostRow;
+        Insert: Pick<PostRow, "author_id" | "category" | "body">;
+        Update: Partial<Pick<PostRow, "category" | "body">>;
+        Relationships: [];
+      };
+      post_likes: {
+        Row: PostLikeRow;
+        Insert: Pick<PostLikeRow, "post_id" | "user_id">;
+        Update: never;
+        Relationships: [];
+      };
+      post_comments: {
+        Row: PostCommentRow;
+        Insert: Pick<PostCommentRow, "post_id" | "author_id" | "body">;
         Update: never;
         Relationships: [];
       };

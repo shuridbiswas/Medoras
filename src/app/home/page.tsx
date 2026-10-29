@@ -1,20 +1,33 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/app-header";
-import { LinkButton } from "@/components/ui/link-button";
 import { avatarUrl, requireMember } from "@/lib/auth/session";
-import { FIELDS, MEMBER_TYPES } from "@/features/onboarding/options";
+import { categorySchema } from "@/features/feed/schemas";
+import { FeedNav } from "@/features/feed/components/feed-nav";
+import { FeedSection } from "@/features/feed/components/feed-section";
+import { FeedSkeleton } from "@/features/feed/components/feed-skeleton";
+import { PostComposer } from "@/features/feed/components/post-composer";
+import { SafetyNotice } from "@/features/feed/components/safety-notice";
+import { categoryLabel } from "@/features/feed/options";
+import { Greeting } from "@/features/home/components/greeting";
+import { LeftSidebar } from "@/features/home/components/left-sidebar";
+import {
+  RightSidebar,
+  RightSidebarSkeleton,
+} from "@/features/home/components/right-sidebar";
 
 export const metadata: Metadata = {
   title: "Home",
   robots: { index: false },
 };
 
-export default function HomePage() {
+type Props = { searchParams: Promise<{ category?: string | string[] }> };
+
+export default function HomePage({ searchParams }: Props) {
   return (
-    <div className="min-h-dvh bg-sand/60">
+    <div className="min-h-dvh bg-sand/60 pb-20 md:pb-0">
       <Suspense fallback={<HomeFallback />}>
-        <HomeContent />
+        <HomeContent searchParams={searchParams} />
       </Suspense>
     </div>
   );
@@ -29,64 +42,76 @@ function HomeFallback() {
   );
 }
 
-async function HomeContent() {
+async function HomeContent({ searchParams }: Props) {
   // Server-side gate: signed in, verified, and onboarding complete.
-  const { profile } = await requireMember();
-  const photo = avatarUrl(profile.avatar_path);
-  const role = MEMBER_TYPES.find((m) => m.value === profile.member_type)?.label;
-  const fields = profile.fields
-    .map((f) => FIELDS.find((o) => o.value === f)?.label)
-    .filter(Boolean)
-    .join(", ");
+  const { user, profile } = await requireMember();
+  const params = await searchParams;
+  const rawCategory = Array.isArray(params.category)
+    ? params.category[0]
+    : params.category;
+  // An unknown ?category= falls back to the full feed instead of erroring.
+  const parsed = categorySchema.safeParse(rawCategory);
+  const category = parsed.success ? parsed.data : undefined;
 
   return (
     <>
-      <AppHeader username={profile.username} />
-      <main id="main" className="mx-auto max-w-4xl px-5 py-10">
-        <section
-          aria-labelledby="welcome"
-          className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-6 sm:flex-row sm:items-center sm:p-8"
-        >
-          <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-maroon-100 text-2xl font-bold text-maroon-700">
-            {photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photo} alt="" className="size-full object-cover" />
-            ) : (
-              profile.first_name.slice(0, 1).toUpperCase()
-            )}
-          </span>
-          <div className="min-w-0">
-            <h1 id="welcome" className="text-2xl font-bold text-maroon-900">
-              Welcome, {profile.first_name}
-            </h1>
-            <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            {profile.headline ? (
-              <p className="mt-1 text-maroon-900/85">{profile.headline}</p>
-            ) : null}
-            <p className="mt-1 text-sm text-muted-foreground">
-              {[role, fields].filter(Boolean).join(" · ")}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <LinkButton
-                href={`/profile/${profile.username}`}
-                className="h-9 px-3.5 text-sm"
-              >
-                View my profile
-              </LinkButton>
-              <LinkButton
-                href="/profile/edit"
-                variant="outline"
-                className="h-9 px-3.5 text-sm"
-              >
-                Edit profile
-              </LinkButton>
-            </div>
+      <AppHeader member={profile} wide />
+      <main
+        id="main"
+        className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_19rem]"
+      >
+        <div className="hidden lg:block">
+          <div className="sticky top-22">
+            <LeftSidebar profile={profile} current="home" />
           </div>
-        </section>
-        <p className="mt-6 rounded-2xl border border-dashed border-maroon-200 bg-maroon-50 p-6 text-maroon-900">
-          Your account is ready. The Medoras home feed, communities and
-          mentorship are being built next.
-        </p>
+        </div>
+
+        <div className="min-w-0 space-y-5">
+          <div>
+            <Greeting firstName={profile.first_name} />
+            <p className="mt-1 text-sm text-muted-foreground">
+              Posts from Medoras members, newest first. {" "}
+              <span className="whitespace-nowrap">Share something, or join a conversation.</span>
+            </p>
+          </div>
+
+          <PostComposer
+            name={profile.first_name}
+            avatarSrc={avatarUrl(profile.avatar_path)}
+          />
+
+          <FeedNav active={category} />
+
+          <section
+            aria-label={category ? `${categoryLabel(category)} posts` : "Latest posts"}
+          >
+            <Suspense key={category ?? "all"} fallback={<FeedSkeleton />}>
+              <FeedSection
+                viewerId={user.id}
+                category={category}
+                retryHref={category ? `/home?category=${category}` : "/home"}
+                emptyTitle={
+                  category ? "No posts in this category yet" : "No posts yet"
+                }
+                emptyDescription={
+                  category
+                    ? "Be the first to start a conversation here."
+                    : "Nothing has been shared yet. Start the first conversation using the box above."
+                }
+              />
+            </Suspense>
+          </section>
+
+          <SafetyNotice className="rounded-xl border border-border bg-surface p-3" />
+        </div>
+
+        <div className="hidden xl:block">
+          <div className="sticky top-22">
+            <Suspense fallback={<RightSidebarSkeleton />}>
+              <RightSidebar profile={profile} />
+            </Suspense>
+          </div>
+        </div>
       </main>
     </>
   );
