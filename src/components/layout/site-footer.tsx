@@ -35,7 +35,7 @@ export function SiteFooter() {
             reserved.
           </p>
           <p>
-            Medoras is a community platform and does not provide medical advice
+            Medyra is a community platform and does not provide medical advice
             or emergency services.
           </p>
         </div>

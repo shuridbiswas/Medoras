@@ -66,7 +66,7 @@ export async function signUp(
 
   const { firstName, lastName, email, password } = parsed.data;
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -96,6 +96,10 @@ export async function signUp(
       };
     }
   }
+
+  // With email confirmation turned off (development projects), Supabase signs the new member
+  // in immediately. Skip the "check your inbox" screen and continue to onboarding.
+  if (data?.session) redirect("/onboarding");
 
   // Note: when the address is already registered and confirmations are on, Supabase also
   // returns success with no identities and sends no new account. Same screen again.

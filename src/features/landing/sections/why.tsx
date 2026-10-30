@@ -7,7 +7,7 @@ export function Why() {
       <Container className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
         <SectionHeading
           id="why-heading"
-          eyebrow="Why Medoras exists"
+          eyebrow="Why Medyra exists"
           title="No one should have to navigate their education, career, or challenges alone."
         />
         <div className="space-y-6 text-base leading-relaxed text-muted-foreground sm:text-lg">
@@ -18,7 +18,7 @@ export function Why() {
             or feel understood.
           </p>
           <p>
-            Medoras is that place. It brings the whole community together, from
+            Medyra is that place. It brings the whole community together, from
             a first-year student to a seasoned clinician, so knowledge flows in
             every direction, opportunities are easier to find, and asking for
             help is treated as a strength.

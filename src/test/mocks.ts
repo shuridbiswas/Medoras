@@ -42,6 +42,8 @@ type AuthError = { code?: string; message: string } | null;
 export function makeSupabase(
   overrides: {
     signUp?: AuthError;
+    /** True when the project has email confirmation off, so signUp returns a session. */
+    signUpSession?: boolean;
     signIn?: AuthError;
     resetForEmail?: AuthError;
     updateUser?: AuthError;
@@ -55,7 +57,7 @@ export function makeSupabase(
   return {
     auth: {
       signUp: vi.fn(async () => ({
-        data: {},
+        data: overrides.signUpSession ? { session: { access_token: "t" } } : {},
         error: overrides.signUp ?? null,
       })),
       signInWithPassword: vi.fn(async () => ({

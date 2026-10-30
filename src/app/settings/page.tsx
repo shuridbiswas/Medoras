@@ -140,7 +140,7 @@ async function SettingsContent() {
             Privacy
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Only signed-in Medoras members can see profiles. Per-field privacy
+            Only signed-in Medyra members can see profiles. Per-field privacy
             controls are planned.
           </p>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">

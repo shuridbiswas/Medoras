@@ -27,12 +27,12 @@ describe("Hero", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: /your community/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /join medoras/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /join medyra/i })).toHaveAttribute(
       "href",
       authLinks.join,
     );
     expect(
-      screen.getByRole("link", { name: /discover medoras/i }),
+      screen.getByRole("link", { name: /discover medyra/i }),
     ).toHaveAttribute("href", "/#why");
   });
 });

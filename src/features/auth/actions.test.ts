@@ -46,6 +46,13 @@ beforeEach(() => {
 });
 
 describe("signUp", () => {
+  it("continues straight to onboarding when the project returns a session (confirmation off)", async () => {
+    supabase = makeSupabase({ signUpSession: true });
+    expect(await redirectOf(() => actions.signUp(idle, makeFormData(signupData)))).toBe(
+      "/onboarding",
+    );
+  });
+
   it("registers with Supabase and asks the member to check their email", async () => {
     const state = await actions.signUp(idle, makeFormData(signupData));
     expect(state).toEqual({ status: "success", email: "amina@example.com" });
@@ -148,7 +155,7 @@ describe("signIn", () => {
       email: "amina@example.com",
       password: "whatever-1",
     });
-    expect(cookieStore.delete).toHaveBeenCalledWith("medoras-session-only");
+    expect(cookieStore.delete).toHaveBeenCalledWith("medyra-session-only");
   });
 
   it("makes the session browser-only when 'keep me signed in' is unticked", async () => {
@@ -156,7 +163,7 @@ describe("signIn", () => {
       actions.signIn(idle, makeFormData({ ...login, remember: undefined })),
     );
     expect(cookieStore.set).toHaveBeenCalledWith(
-      "medoras-session-only",
+      "medyra-session-only",
       "1",
       expect.objectContaining({ httpOnly: true, sameSite: "lax" }),
     );
@@ -320,6 +327,6 @@ describe("resendVerification and signOut", () => {
     const to = await redirectOf(() => actions.signOut());
     expect(to).toBe("/");
     expect(supabase.auth.signOut).toHaveBeenCalled();
-    expect(cookieStore.delete).toHaveBeenCalledWith("medoras-session-only");
+    expect(cookieStore.delete).toHaveBeenCalledWith("medyra-session-only");
   });
 });

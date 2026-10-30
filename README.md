@@ -1,4 +1,4 @@
-# Medoras
+# Medyra
 
 **Connect. Learn. Grow. Belong.**
 
@@ -20,6 +20,15 @@ npm run dev
 ```
 
 Open http://localhost:3000. Without Supabase values the welcome page works, and the auth pages clearly say authentication isn't configured instead of failing silently.
+
+## Development project and manual testing
+
+This repository is connected to a Supabase **development** project (`medyra-dev`, Canada Central). All four migrations in `supabase/migrations/` have been applied to it, row level security is on for all eight tables, and the `avatars` and `covers` storage buckets exist. `.env.local` (git-ignored) holds its URL and publishable key.
+
+- Launch: `npm install` then `npm run dev`, and open http://localhost:3000.
+- Follow **[TESTING.md](TESTING.md)** to create two accounts, post, like, comment, and confirm that one account cannot change the other's content.
+- Dashboard-only settings (redirect URLs, email confirmation, password length) are listed in TESTING.md section 0. Email confirmation must be turned **off in development only** (the built-in mailer allows 2 emails per hour) and **on** before real users sign up.
+- Never use the project's secret or `service_role` key in this app, and never paste it in chat. A Supabase personal access token (`sbp_...`) was used once to create the project and apply the migrations; revoke it in Account > Access Tokens when you no longer need it.
 
 ## Supabase setup (required for sign-up and sign-in)
 
@@ -57,7 +66,7 @@ Signed in, onboarding unfinished: any private route -> /onboarding
 - `/settings` shows the account email (private), changes the password, and summarizes what is visible to members.
 - Profile photos (2 MB) and cover images (5 MB) must be real JPEG, PNG or WebP files; the server checks the file's bytes, not just its name.
 - Only signed-in, onboarded members can view profiles, and only the owner can change one. Email addresses are never part of a profile. Location is optional and only a general place the member types (for example "Montreal, QC") is shown, with their country.
-- Mentorship preferences, skills and interests are **self-reported**; Medoras does not verify credentials and shows no verification badges.
+- Mentorship preferences, skills and interests are **self-reported**; Medyra does not verify credentials and shows no verification badges.
 - Storage buckets are public-by-URL (unguessable per-upload file names); uploads and deletes are limited to the member's own folder.
 
 ## Home feed (Phase 4)
@@ -101,7 +110,9 @@ Automatically, by `npm test` (293 tests), `npm run lint`, `npm run typecheck` an
 - The feed: creating, editing and deleting posts, unauthorized edit and delete attempts (zero rows matched), forged author ids, likes (duplicate and unlike), comments (own-only delete), keyset pagination and cursor validation, optimistic like rollback, "Load more", failed saves keeping the member's text, the mobile tab bar and More menu, the account menu, profile links from posts, and protected routes
 - The SQL migrations, run in an in-memory Postgres (PGlite) with stand-ins for Supabase's `auth` and `storage` schemas: constraints, unique usernames, row level security (own-row updates only, no email exposure, anonymous blocked), column grants, education/experience/skills rules and limits, and avatar and cover folder policies
 
-**Not verified (needs your Supabase project):** real email delivery and links, Supabase Auth's actual error codes and rate limits, cookie behaviour across a real browser session, posting, liking and commenting against a live project (PostgREST embedded counts and author embeds, real RLS evaluation), the storage upload path against live `avatars` and `covers` buckets (including the Supabase size and type limits), and the real RLS evaluation by PostgREST. After completing the setup above, walk through: sign up, receive and click the email, finish onboarding, sign out and in, reset the password. Run `npx supabase db advisors` (or the dashboard's Security Advisor) as well.
+**Verified live against the development project:** the four migrations apply cleanly in order; all eight tables have row level security; anonymous requests are refused on every table (including inserts); both storage buckets exist with the right size and type limits; the Supabase security advisor reports no findings; the app boots with the project's values, serves the Medyra pages and redirects signed-out visitors to `/login`. With two real accounts created through the Auth API (since deleted) the following were checked live: automatic profile creation, onboarding data, education/experience/skills, publishing and editing posts, likes (duplicates refused), comments, exact counts, author embeds, keyset pagination, persistence across a fresh login, private onboarding answers hidden from other members, and that a second account cannot edit, delete, impersonate or like/comment as the first; storage: own-folder uploads work, uploads to another member's folder, non-images and files over 2 MB are refused, and public image URLs load. Sign-up through the real UI form lands on `/onboarding`. The five-step onboarding wizard and image upload through the browser UI were not clicked through by hand.
+
+**Not verified (needs signed-in test accounts in your Supabase project):** real email delivery and links, Supabase Auth's actual error codes and rate limits, cookie behaviour across a real browser session, posting, liking and commenting against a live project (PostgREST embedded counts and author embeds, real RLS evaluation), the storage upload path against live `avatars` and `covers` buckets (including the Supabase size and type limits), and the real RLS evaluation by PostgREST. After completing the setup above, walk through: sign up, receive and click the email, finish onboarding, sign out and in, reset the password. Run `npx supabase db advisors` (or the dashboard's Security Advisor) as well.
 
 ## Deploying
 

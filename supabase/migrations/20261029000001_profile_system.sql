@@ -11,7 +11,7 @@
 alter table public.profiles drop constraint profiles_username_not_reserved;
 alter table public.profiles add constraint profiles_username_not_reserved
   check (username is null or username not in (
-    'admin', 'administrator', 'medoras', 'support', 'help', 'moderator', 'mod',
+    'admin', 'administrator', 'medoras', 'medyra', 'support', 'help', 'moderator', 'mod',
     'staff', 'team', 'official', 'security', 'root', 'system', 'null', 'undefined',
     'login', 'signup', 'home', 'onboarding', 'settings', 'api', 'auth',
     'edit', 'profile', 'profiles', 'new', 'me', 'about', 'contact', 'privacy', 'terms'

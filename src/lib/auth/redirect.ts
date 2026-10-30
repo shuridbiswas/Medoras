@@ -26,11 +26,11 @@ export function safeNextPath(
   }
   let url: URL;
   try {
-    url = new URL(next, "http://medoras.invalid");
+    url = new URL(next, "http://medyra.invalid");
   } catch {
     return fallback;
   }
-  if (url.origin !== "http://medoras.invalid") return fallback;
+  if (url.origin !== "http://medyra.invalid") return fallback;
 
   const { pathname } = url;
   const allowed = ALLOWED_PREFIXES.some(

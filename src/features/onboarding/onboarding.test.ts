@@ -68,7 +68,7 @@ describe("username rules", () => {
     "UPPER-dash",
     "x".repeat(31),
     "admin",
-    "Medoras",
+    "Medyra",
     "emoji😀name",
   ])("rejects %j", (username) => {
     expect(

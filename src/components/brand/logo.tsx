@@ -39,7 +39,7 @@ export function Wordmark({
         className,
       )}
     >
-      Medoras
+      Medyra
     </span>
   );
 }
@@ -54,7 +54,7 @@ export function Logo({
   return (
     <Link
       href="/"
-      aria-label="Medoras home"
+      aria-label="Medyra home"
       className={cn("inline-flex items-center gap-2.5", className)}
     >
       <LogoMark tone={tone} />

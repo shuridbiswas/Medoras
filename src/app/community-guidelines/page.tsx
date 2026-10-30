@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <PageShell eyebrow="Community" title="Community Guidelines">
       <p>
-        These are the working rules for the Medoras community feed. They are a
+        These are the working rules for the Medyra community feed. They are a
         starting point, not a finished policy, and will be expanded before the
         community grows.
       </p>
@@ -40,7 +40,7 @@ export default function Page() {
       <h2>What is not active yet</h2>
       <ul>
         <li>
-          <strong>Identity verification is not active.</strong> Medoras does not
+          <strong>Identity verification is not active.</strong> Medyra does not
           yet verify that anyone is a licensed professional or student. Profiles
           are self-reported and show no verification badges.
         </li>
@@ -59,7 +59,7 @@ export default function Page() {
       <h2>Your posts</h2>
       <p>
         You can edit or delete your own posts and comments at any time. Posts
-        are visible to other signed-in Medoras members, not to the public
+        are visible to other signed-in Medyra members, not to the public
         internet.
       </p>
     </PageShell>

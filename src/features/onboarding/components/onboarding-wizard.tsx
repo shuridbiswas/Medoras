@@ -53,7 +53,7 @@ const STEPS = [
     blurb: "Where you learn or work, and where you're based.",
   },
   {
-    title: "Your purpose on Medoras",
+    title: "Your purpose on Medyra",
     blurb: "Pick everything that applies. You can change it later.",
   },
   {

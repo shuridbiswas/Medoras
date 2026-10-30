@@ -13,7 +13,7 @@ export const FUTURE_MODULES = {
   communities: {
     title: "Communities",
     summary:
-      "Discipline and interest communities, local groups and study spaces are planned for Medoras.",
+      "Discipline and interest communities, local groups and study spaces are planned for Medyra.",
     bullets: [
       "Join spaces for your field, program or region.",
       "Start discussions alongside people at your career stage.",

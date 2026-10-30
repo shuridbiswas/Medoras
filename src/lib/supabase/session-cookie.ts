@@ -5,7 +5,7 @@ import type { CookieOptions } from "@supabase/ssr";
  * signs in without ticking the box we set this flag cookie, and every Supabase cookie
  * write then drops its expiry so the session ends when the browser closes.
  */
-export const SESSION_ONLY_COOKIE = "medoras-session-only";
+export const SESSION_ONLY_COOKIE = "medyra-session-only";
 
 export function applySessionPolicy(
   options: CookieOptions,

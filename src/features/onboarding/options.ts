@@ -90,6 +90,7 @@ export const RESERVED_USERNAMES = [
   "admin",
   "administrator",
   "medoras",
+  "medyra",
   "support",
   "help",
   "moderator",

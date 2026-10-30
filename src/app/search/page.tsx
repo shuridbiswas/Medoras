@@ -69,7 +69,7 @@ async function SearchContent({ searchParams }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-maroon-900">{heading}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Search finds Medoras members by name or username. Topics, posts, jobs
+            Search finds Medyra members by name or username. Topics, posts, jobs
             and resources are not searchable yet.
             {mentors
               ? " Mentoring availability is self-reported and not verified."

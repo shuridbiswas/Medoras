@@ -24,7 +24,7 @@ export function HeroPreview() {
     <div className="relative mx-auto w-full max-w-[34rem]">
       <div
         role="img"
-        aria-label="Illustrative preview of a Medoras member profile, profile strength, network and goals"
+        aria-label="Illustrative preview of a Medyra member profile, profile strength, network and goals"
         className="space-y-4"
       >
         <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_24px_60px_-30px_rgba(110,16,38,0.45)]">

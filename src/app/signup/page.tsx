@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default function SignupPage() {
   return (
     <AuthShell
-      title="Join Medoras"
+      title="Join Medyra"
       subtitle="Create your account to connect, learn and grow with your community."
       footer={
         <>

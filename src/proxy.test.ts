@@ -20,7 +20,7 @@ vi.mock("@/lib/supabase/proxy", async () => {
 const { proxy, config } = await import("@/proxy");
 
 const run = async (path: string) => {
-  const response = await proxy(new NextRequest(`https://medoras.test${path}`));
+  const response = await proxy(new NextRequest(`https://medyra.test${path}`));
   const location = response.headers.get("location");
   return location
     ? new URL(location).pathname + new URL(location).search

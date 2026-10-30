@@ -1,7 +1,7 @@
 # Local Supabase development settings (`npx supabase start`). Not used by the hosted project:
 # configure the same options in the dashboard (see README). Written by hand and not yet run
 # against the CLI, so run `npx supabase --help` and `supabase start` once to confirm it loads.
-project_id = "medoras"
+project_id = "medyra"
 
 [auth]
 enabled = true
@@ -18,11 +18,11 @@ double_confirm_changes = true
 secure_password_change = true
 
 [auth.email.template.confirmation]
-subject = "Confirm your Medoras email"
+subject = "Confirm your Medyra email"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.recovery]
-subject = "Reset your Medoras password"
+subject = "Reset your Medyra password"
 content_path = "./supabase/templates/recovery.html"
 
 [storage]

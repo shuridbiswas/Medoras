@@ -94,7 +94,7 @@ async function EditContent() {
             Edit your profile
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Everything here is visible to other signed-in Medoras members. Your
+            Everything here is visible to other signed-in Medyra members. Your
             email address is never shown.
           </p>
           <nav

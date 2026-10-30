@@ -62,7 +62,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Medoras design tokens: white, rose-tinted neutrals and a maroon primary. */
+/* Medyra design tokens: white, rose-tinted neutrals and a maroon primary. */
 :root {
   --ink: oklch(0.22 0.025 15);
   --canvas: oklch(0.995 0.002 10);

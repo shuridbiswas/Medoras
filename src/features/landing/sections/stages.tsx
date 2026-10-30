@@ -14,7 +14,7 @@ export function Stages() {
           eyebrow="Community"
           title="One community, every career stage."
         >
-          A career is a long path. Medoras keeps you connected to the people
+          A career is a long path. Medyra keeps you connected to the people
           behind you, beside you and ahead of you along the way.
         </SectionHeading>
 

@@ -1,6 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import {
@@ -22,6 +23,9 @@ export async function createClient(options: { sessionOnly?: boolean } = {}) {
       "Supabase is not configured. Copy .env.example to .env.local and fill in your project values.",
     );
   }
+  // Supabase reads the clock to check token expiry. Mark this as request-time work so Next
+  // never tries to prerender it (Cache Components rejects unstable time values).
+  await connection();
   const cookieStore = await cookies();
   const sessionOnly =
     options.sessionOnly ?? cookieStore.get(SESSION_ONLY_COOKIE)?.value === "1";

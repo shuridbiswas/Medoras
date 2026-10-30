@@ -33,7 +33,7 @@ export function FinalCta() {
               size="lg"
               className="h-12 bg-white px-7 text-base text-maroon-700 hover:bg-maroon-50"
             >
-              Join Medoras
+              Join Medyra
               <ArrowRight className="size-4" aria-hidden="true" />
             </LinkButton>
           </div>

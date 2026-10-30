@@ -1,15 +1,15 @@
 export const siteConfig = {
-  name: "Medoras",
+  name: "Medyra",
   copyrightYear: 2026,
   tagline: "Connect. Learn. Grow. Belong.",
   secondaryTagline: "More than a career. A community that cares.",
   description:
-    "Medoras is the professional and social network for the healthcare and social services community: connect with peers, find mentors, share knowledge, and discover opportunities.",
+    "Medyra is the professional and social network for the healthcare and social services community: connect with peers, find mentors, share knowledge, and discover opportunities.",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
 } as const;
 
 export const navLinks = [
-  { label: "Why Medoras", href: "/#why" },
+  { label: "Why Medyra", href: "/#why" },
   { label: "Community", href: "/#community" },
   { label: "Mentorship", href: "/#mentorship" },
   { label: "Careers", href: "/#careers" },

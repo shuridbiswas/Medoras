@@ -14,7 +14,7 @@ export function WhatYouCanDo() {
           eyebrow="What you can do"
           title="Everything a healthcare career needs, in one welcoming place."
         >
-          Medoras is being built in stages. These are the experiences we are
+          Medyra is being built in stages. These are the experiences we are
           designing the community around.
         </SectionHeading>
 

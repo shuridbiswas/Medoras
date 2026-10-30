@@ -1,8 +1,8 @@
-# Medoras
+# Medyra
 
 **Connect. Learn. Grow. Belong.** | _More than a career. A community that cares._
 
-Medoras is a professional and social network exclusively for the healthcare and social services ecosystem: students, recent graduates, professionals, educators, researchers, mentors, employers and organizations. This is a long-term startup product, not a demo.
+Medyra is a professional and social network exclusively for the healthcare and social services ecosystem: students, recent graduates, professionals, educators, researchers, mentors, employers and organizations. This is a long-term startup product, not a demo.
 
 ## Product vision
 
@@ -100,6 +100,10 @@ Feed architecture:
 - Safety copy lives in `SafetyNotice` and `/community-guidelines`: no identifiable patient information, member posts are not medical advice, and verification and automated moderation are NOT active. Keep these statements true and update them when that changes. Reporting and blocking are not built.
 - Right-rail data is real or empty: no fabricated members or engagement. `supabase/dev-seed/posts.sql` is a development-only script that adds labelled "[Development sample]" posts under an existing member; it creates no people, likes or comments.
 - Tests: `supabase/tests/feed.test.ts` (policies in PGlite), `src/features/feed/{actions,queries,feed}.test.*`, `components/feed-components.test.tsx`, `src/components/layout/layout.test.tsx`.
+
+Development environment: the repo is wired to a Supabase development project (`medyra-dev`) through git-ignored `.env.local`. Migrations were applied through the Management API and recorded in `supabase_migrations.schema_migrations`, so `supabase db push` will not re-run them. New migrations go in `supabase/migrations/` with a later timestamp; never edit an applied migration. Manual test procedure: `TESTING.md`. Email confirmation is OFF in the dev project only (dev convenience); `signUp` handles both cases (a returned session continues to `/onboarding`). Never put a secret or service_role key in the app or in chat.
+
+The product was renamed from Medoras to Medyra. The wordmark, copy, cookie (`medyra-session-only`) and package name use Medyra; `medoras` stays a reserved username so nobody can impersonate the old name.
 
 Out of scope until later phases: connections, communities, mentorship matching, forums, messaging, jobs, reporting/blocking/moderation tooling, saved posts, post media, AI features, per-field privacy settings, username changes.
 

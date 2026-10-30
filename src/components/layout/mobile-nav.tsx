@@ -35,7 +35,7 @@ export function MobileNav() {
       <SheetContent side="right" className="bg-canvas p-0">
         <SheetHeader className="border-b border-border px-6 py-5">
           <SheetTitle className="font-display text-xl text-maroon-900">
-            Medoras
+            Medyra
           </SheetTitle>
         </SheetHeader>
         <nav aria-label="Mobile" className="flex flex-col px-3 py-4">
@@ -64,7 +64,7 @@ export function MobileNav() {
             onClick={close}
             className="h-11 text-base"
           >
-            Join Medoras
+            Join Medyra
           </LinkButton>
         </div>
       </SheetContent>

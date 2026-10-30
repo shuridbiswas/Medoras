@@ -70,7 +70,7 @@ async function HomeContent({ searchParams }: Props) {
           <div>
             <Greeting firstName={profile.first_name} />
             <p className="mt-1 text-sm text-muted-foreground">
-              Posts from Medoras members, newest first. {" "}
+              Posts from Medyra members, newest first. {" "}
               <span className="whitespace-nowrap">Share something, or join a conversation.</span>
             </p>
           </div>

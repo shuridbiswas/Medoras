@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <PageShell eyebrow="Contact" title="Contact">
       <p>
-        A contact form and support address will be available as Medoras
+        A contact form and support address will be available as Medyra
         approaches launch.
       </p>
       <p>Until then, please check back here for updates.</p>

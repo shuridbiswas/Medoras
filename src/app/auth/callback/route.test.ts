@@ -18,11 +18,11 @@ const { GET } = await import("@/app/auth/callback/route");
 
 const call = async (query: string) => {
   const response = await GET(
-    new NextRequest(`https://medoras.test/auth/callback?${query}`),
+    new NextRequest(`https://medyra.test/auth/callback?${query}`),
   );
   const location = new URL(
     response.headers.get("location") ?? "",
-    "https://medoras.test",
+    "https://medyra.test",
   );
   return {
     status: response.status,
@@ -90,7 +90,7 @@ describe("/auth/callback", () => {
       const result = await call(
         `token_hash=abc&type=email&next=${encodeURIComponent(next)}`,
       );
-      expect(result.origin).toBe("https://medoras.test");
+      expect(result.origin).toBe("https://medyra.test");
       expect(result.location).toBe("/onboarding");
     }
   });

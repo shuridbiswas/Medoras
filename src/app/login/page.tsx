@@ -25,10 +25,10 @@ export default function LoginPage({
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in to continue to Medoras."
+      subtitle="Sign in to continue to Medyra."
       footer={
         <>
-          New to Medoras?{" "}
+          New to Medyra?{" "}
           <Link
             href="/signup"
             className="font-semibold text-maroon-700 underline-offset-4 hover:underline"

@@ -20,7 +20,7 @@ export function Mentorship() {
             <span className="text-maroon-200">beginner.</span>
           </h2>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
-            Medoras will connect students and recent graduates with experienced
+            Medyra will connect students and recent graduates with experienced
             professionals who want to share what they know, through one-on-one
             guidance, group discussions and structured sessions.
           </p>

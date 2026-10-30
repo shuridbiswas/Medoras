@@ -180,7 +180,7 @@ export async function RightSidebar({ profile }: { profile: ProfileRow }) {
         )}
       </Card>
 
-      <Card id="rail-upcoming" title="Coming to Medoras" note="Planned. Not available yet.">
+      <Card id="rail-upcoming" title="Coming to Medyra" note="Planned. Not available yet.">
         <ul className="space-y-2">
           {UPCOMING_FEATURES.map((f) => (
             <li key={f.title} className="text-sm">

@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <PageShell eyebrow="Legal" title="Privacy">
       <p>
-        Medoras has not yet launched and does not currently collect personal
+        Medyra has not yet launched and does not currently collect personal
         information through this page.
       </p>
       <p>

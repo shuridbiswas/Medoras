@@ -25,13 +25,13 @@ export function Hero() {
             <span className="text-maroon-600">Your Career.</span> Your Journey.
           </h1>
           <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
-            Medoras connects students, graduates and professionals across
+            Medyra connects students, graduates and professionals across
             healthcare and social services through real relationships,
             mentorship, shared knowledge and meaningful opportunities.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <LinkButton href={authLinks.join} className="h-12 px-6 text-base">
-              Join Medoras
+              Join Medyra
               <ArrowRight className="size-4" aria-hidden="true" />
             </LinkButton>
             <LinkButton
@@ -39,7 +39,7 @@ export function Hero() {
               variant="outline"
               className="h-12 px-6 text-base"
             >
-              Discover Medoras
+              Discover Medyra
             </LinkButton>
           </div>
           <p className="mt-6 text-sm text-muted-foreground">

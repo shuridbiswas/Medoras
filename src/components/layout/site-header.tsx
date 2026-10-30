@@ -32,7 +32,7 @@ export function SiteHeader() {
             href={authLinks.join}
             className="hidden h-9 px-4 text-sm md:inline-flex"
           >
-            Join Medoras
+            Join Medyra
           </LinkButton>
           <MobileNav />
         </div>

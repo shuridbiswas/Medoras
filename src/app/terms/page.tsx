@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <PageShell eyebrow="Legal" title="Terms">
       <p>
-        Medoras has not yet launched. Terms of use will be published before
+        Medyra has not yet launched. Terms of use will be published before
         accounts are available.
       </p>
     </PageShell>
