@@ -16,6 +16,8 @@ export type FeedPost = {
   likeCount: number;
   commentCount: number;
   likedByMe: boolean;
+  /** Whether the viewer bookmarked it. Private to the viewer. */
+  savedByMe: boolean;
   /** True when the signed-in viewer wrote it. Computed on the server from the verified user id. */
   isOwn: boolean;
 };

@@ -106,8 +106,8 @@ export function FeedbackPanel({ links }: { links: FeedbackLinks | null }) {
             Reporting a person or a post?
           </h2>
           <p className="mt-1 text-maroon-900/85">
-            Product feedback is separate from community safety. Reporting and blocking
-            tools are not built yet. To raise a safety concern now, use the{" "}
+            Product feedback is separate from community safety. Reporting tools are
+            not built yet (you can block a member from their profile). To raise a safety concern now, use the{" "}
             <Link href="/contact" className="font-medium text-maroon-700 underline underline-offset-2">
               contact page
             </Link>

@@ -12,6 +12,7 @@ export type Op = {
 
 type Result = {
   data?: unknown;
+  count?: number | null;
   error?: { code?: string; message?: string } | null;
 };
 type Handler = (op: Op) => Result | undefined;
@@ -40,7 +41,10 @@ export function makeDb(handler: Handler = () => undefined) {
       return result;
     };
     const chain = {
-      select: () => chain,
+      select: (_columns?: string, options?: unknown) => {
+        if (options) op.filters.push(["select options", options]);
+        return chain;
+      },
       update: (payload: unknown) => {
         op.kind = "update";
         op.payload = payload;
@@ -81,6 +85,22 @@ export function makeDb(handler: Handler = () => undefined) {
       },
       or: (expression: string) => {
         op.filters.push(["or", expression]);
+        return chain;
+      },
+      range: (from: number, to: number) => {
+        op.filters.push(["range", [from, to]]);
+        return chain;
+      },
+      lt: (column: string, value: unknown) => {
+        op.filters.push([`${column}<`, value]);
+        return chain;
+      },
+      is: (column: string, value: unknown) => {
+        op.filters.push([`${column} is`, value]);
+        return chain;
+      },
+      ilike: (column: string, value: unknown) => {
+        op.filters.push([`${column} ilike`, value]);
         return chain;
       },
       limit: (n: number) => {

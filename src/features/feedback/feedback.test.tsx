@@ -27,7 +27,7 @@ describe("FeedbackPanel", () => {
   it("keeps product feedback separate from safety reports and warns against sharing patient information", () => {
     render(<FeedbackPanel links={null} />);
     expect(screen.getByRole("heading", { name: /reporting a person or a post/i })).toBeInTheDocument();
-    expect(screen.getByText(/reporting and blocking tools are not built yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/reporting tools are not built yet/i)).toBeInTheDocument();
     expect(screen.getByText(/don.t include patient or client information/i)).toBeInTheDocument();
     expect(screen.getByText(/does not send it your profile/i)).toBeInTheDocument();
   });

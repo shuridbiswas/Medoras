@@ -8,13 +8,14 @@ import {
   useState,
   useTransition,
 } from "react";
-import { Heart, MessageCircle, Pencil, Trash2 } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, Pencil, Trash2 } from "lucide-react";
 import { MemberAvatar } from "@/components/member-avatar";
 import { RelativeTime } from "@/components/relative-time";
 import { FormAlert } from "@/components/forms/fields";
 import { Button } from "@/components/ui/button";
 import { avatarUrl } from "@/lib/storage-url";
 import { deletePost, setLike, updatePost } from "@/features/feed/actions";
+import { setSaved } from "@/features/saved/actions";
 import { Comments } from "@/features/feed/components/comments";
 import {
   categoryLabel,
@@ -110,9 +111,12 @@ function EditForm({
 export function PostCard({
   post: initial,
   onDeleted,
+  onUnsaved,
 }: {
   post: FeedPost;
   onDeleted: (id: string) => void;
+  /** Called after the viewer removes the post from their saved items. */
+  onUnsaved?: (id: string) => void;
 }) {
   const [post, setPost] = useState(initial);
   const [liked, setLiked] = useState({
@@ -124,7 +128,9 @@ export function PostCard({
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSavedState] = useState(initial.savedByMe);
   const [likePending, startLike] = useTransition();
+  const [savePending, startSave] = useTransition();
   const [deletePending, startDelete] = useTransition();
   const id = useId();
 
@@ -149,6 +155,22 @@ export function PostCard({
       if (result.ok) setLiked({ on: result.liked, count: result.likeCount });
       else {
         setLiked(previous);
+        setError(result.error);
+      }
+    });
+  }
+
+  function toggleSaved() {
+    const previous = saved;
+    setError(null);
+    setSavedState(!previous);
+    startSave(async () => {
+      const result = await setSaved(post.id, !previous);
+      if (result.ok) {
+        setSavedState(result.saved);
+        if (!result.saved) onUnsaved?.(post.id);
+      } else {
+        setSavedState(previous);
         setError(result.error);
       }
     });
@@ -257,9 +279,9 @@ export function PostCard({
           <span aria-hidden="true">{commentCount}</span>
         </button>
 
-        {post.isOwn && !editing ? (
-          <div className="ml-auto flex items-center gap-1">
-            {confirmDelete ? (
+        <div className="ml-auto flex items-center gap-1">
+          {post.isOwn && !editing ? (
+            confirmDelete ? (
               <>
                 <span className="text-sm text-muted-foreground">Delete this post?</span>
                 <button
@@ -299,9 +321,22 @@ export function PostCard({
                   <span className="hidden sm:inline">Delete</span>
                 </button>
               </>
-            )}
-          </div>
-        ) : null}
+            )
+          ) : null}
+          <button
+            type="button"
+            onClick={toggleSaved}
+            disabled={savePending}
+            aria-pressed={saved}
+            aria-label={saved ? "Remove from saved" : "Save this post"}
+            className={cn(actionButton, saved && "text-maroon-700")}
+          >
+            <Bookmark
+              className={cn("size-4", saved && "fill-maroon-700")}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
       </div>
 
       <div id={`${id}-comments`}>

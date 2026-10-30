@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import { Info } from "lucide-react";
+import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { LinkButton } from "@/components/ui/link-button";
 import { requireMember } from "@/lib/auth/session";
-import { LeftSidebar } from "@/features/home/components/left-sidebar";
 import { FUTURE_MODULES, type FutureModuleKey } from "@/features/home/content";
 
 async function ModuleContent({ module }: { module: FutureModuleKey }) {
@@ -12,14 +12,8 @@ async function ModuleContent({ module }: { module: FutureModuleKey }) {
 
   return (
     <>
-      <AppHeader member={profile} wide />
-      <main
-        id="main"
-        className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[16rem_minmax(0,1fr)]"
-      >
-        <div className="hidden lg:block">
-          <LeftSidebar profile={profile} current={module} />
-        </div>
+      <AppHeader member={profile} />
+      <main id="main" className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         <section
           aria-labelledby="module-title"
           className="max-w-2xl rounded-2xl border border-border bg-surface p-6 sm:p-8"
@@ -51,7 +45,7 @@ async function ModuleContent({ module }: { module: FutureModuleKey }) {
 /** Informational page for a module that is planned but not built. */
 export function ModulePage({ module }: { module: FutureModuleKey }) {
   return (
-    <div className="min-h-dvh bg-sand/60 pb-20 md:pb-0">
+    <AppFrame>
       <Suspense
         fallback={
           <div role="status" className="flex min-h-dvh items-center justify-center">
@@ -62,6 +56,6 @@ export function ModulePage({ module }: { module: FutureModuleKey }) {
       >
         <ModuleContent module={module} />
       </Suspense>
-    </div>
+    </AppFrame>
   );
 }

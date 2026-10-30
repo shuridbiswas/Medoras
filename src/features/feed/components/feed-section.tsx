@@ -11,6 +11,7 @@ export async function FeedSection({
   viewerId,
   category,
   authorId,
+  scope,
   emptyTitle,
   emptyDescription,
   retryHref,
@@ -18,11 +19,12 @@ export async function FeedSection({
   viewerId: string;
   category?: PostCategory;
   authorId?: string;
+  scope?: "following";
   emptyTitle: string;
   emptyDescription: string;
   retryHref: string;
 }) {
-  const page = await getFeedPage(viewerId, { category, authorId });
+  const page = await getFeedPage(viewerId, { category, authorId, scope });
 
   if (page.failed) {
     return (
@@ -50,6 +52,7 @@ export async function FeedSection({
       initial={{ posts: page.posts, nextCursor: page.nextCursor }}
       category={category}
       authorId={authorId}
+      scope={scope}
       empty={
         <EmptyState
           icon={MessagesSquare}

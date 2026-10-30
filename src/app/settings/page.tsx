@@ -4,6 +4,9 @@ import { Suspense } from "react";
 import { Eye, EyeOff, LogOut, Mail, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EmailPreferencesForm } from "@/features/settings/components/email-preferences-form";
+import { InAppPreferencesForm } from "@/features/notifications/components/in-app-preferences-form";
+import { BlockedMembers } from "@/features/network/components/blocked-members";
+import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { LinkButton } from "@/components/ui/link-button";
@@ -18,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function SettingsPage() {
   return (
-    <div className="min-h-dvh bg-sand/60 pb-20 md:pb-0">
+    <AppFrame>
       <Suspense
         fallback={
           <div
@@ -32,7 +35,7 @@ export default function SettingsPage() {
       >
         <SettingsContent />
       </Suspense>
-    </div>
+    </AppFrame>
   );
 }
 
@@ -56,7 +59,7 @@ async function SettingsContent() {
   const supabase = await createClient();
   const { data: prefs } = await supabase
     .from("notification_preferences")
-    .select("notify_activity")
+    .select("notify_activity, inapp_connections, inapp_comments")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -141,10 +144,27 @@ async function SettingsContent() {
         </section>
 
         <section
-          aria-labelledby="notifications"
+          aria-labelledby="in-app"
+          id="notifications"
+          className="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-7"
+        >
+          <h2 id="in-app" className="text-xl font-bold text-maroon-900">
+            Notifications
+          </h2>
+          <p className="mb-5 mt-1 text-sm text-muted-foreground">
+            Choose what shows up in your notifications.
+          </p>
+          <InAppPreferencesForm
+            inappConnections={prefs?.inapp_connections ?? true}
+            inappComments={prefs?.inapp_comments ?? true}
+          />
+        </section>
+
+        <section
+          aria-labelledby="notifications-email"
           className="rounded-2xl border border-border bg-surface p-5 sm:p-7"
         >
-          <h2 id="notifications" className="text-xl font-bold text-maroon-900">
+          <h2 id="notifications-email" className="text-xl font-bold text-maroon-900">
             Email notifications
           </h2>
           <p className="mb-5 mt-1 text-sm text-muted-foreground">
@@ -188,6 +208,22 @@ async function SettingsContent() {
               </ul>
             </div>
           </div>
+        </section>
+
+        <section
+          aria-labelledby="blocked"
+          className="rounded-2xl border border-border bg-surface p-5 sm:p-7"
+        >
+          <h2 id="blocked" className="text-xl font-bold text-maroon-900">
+            Blocked members
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-muted-foreground">
+            Blocked members can&apos;t connect with or follow you, and you can&apos;t connect with or
+            follow them. They aren&apos;t told that you blocked them.
+          </p>
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
+            <BlockedMembers viewerId={user.id} />
+          </Suspense>
         </section>
 
         <form action={signOut}>

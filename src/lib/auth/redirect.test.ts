@@ -9,6 +9,12 @@ describe("safeNextPath (open redirect protection)", () => {
     expect(safeNextPath("/profile/amina_r")).toBe("/profile/amina_r");
     expect(safeNextPath("/settings")).toBe("/settings");
     expect(safeNextPath("/search?q=amina")).toBe("/search");
+    expect(safeNextPath("/network/requests")).toBe("/network/requests");
+    expect(safeNextPath("/notifications")).toBe("/notifications");
+    expect(safeNextPath("/saved")).toBe("/saved");
+    expect(safeNextPath("/post/3d8f6f1e-6c1b-4a3b-9c52-1f0e2a7d9b11")).toBe(
+      "/post/3d8f6f1e-6c1b-4a3b-9c52-1f0e2a7d9b11",
+    );
   });
 
   it("drops the query string and fragment", () => {

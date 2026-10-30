@@ -5,7 +5,6 @@ export const UPCOMING_FEATURES = [
   { title: "Communities", detail: "Topic and discipline spaces to join." },
   { title: "Mentorship matching", detail: "Find and offer guidance." },
   { title: "Careers and internships", detail: "Roles from verified employers." },
-  { title: "Saved posts", detail: "Keep what you want to return to." },
 ] as const;
 
 /** Informational pages for modules that are not built. */
@@ -38,14 +37,6 @@ export const FUTURE_MODULES = {
       "Roles and placements from employers and organizations.",
       "Employer verification before listings go live.",
       "Nothing is listed yet.",
-    ],
-  },
-  saved: {
-    title: "Saved Posts",
-    summary: "Saving posts to read later is planned.",
-    bullets: [
-      "Bookmark posts and come back to them from one place.",
-      "Not available yet.",
     ],
   },
 } as const;

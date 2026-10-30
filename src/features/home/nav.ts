@@ -6,6 +6,7 @@ import {
   Settings,
   User,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -16,24 +17,22 @@ export type AppNavItem = {
   icon: LucideIcon;
   /** True for modules that are not built yet; their page says so plainly. */
   soon?: boolean;
+  /** Primary items fill the sidebar; secondary ones sit below a divider. */
+  group: "primary" | "secondary";
 };
 
 /** Signed-in navigation. "Soon" items lead to an informational page, never to a fake feature. */
 export function appNav(username: string | null): AppNavItem[] {
   return [
-    { key: "home", label: "Home", href: "/", icon: Home },
-    {
-      key: "profile",
-      label: "My Profile",
-      href: username ? `/profile/${username}` : "/profile/edit",
-      icon: User,
-    },
+    { key: "home", label: "Home", href: "/", icon: Home, group: "primary" },
+    { key: "network", label: "Network", href: "/network", icon: UsersRound, group: "primary" },
     {
       key: "communities",
       label: "Communities",
       href: "/communities",
       icon: Users,
       soon: true,
+      group: "primary",
     },
     {
       key: "mentorship",
@@ -41,6 +40,15 @@ export function appNav(username: string | null): AppNavItem[] {
       href: "/mentorship",
       icon: GraduationCap,
       soon: true,
+      group: "primary",
+    },
+    { key: "saved", label: "Saved", href: "/saved", icon: Bookmark, group: "primary" },
+    {
+      key: "profile",
+      label: "Profile",
+      href: username ? `/profile/${username}` : "/profile/edit",
+      icon: User,
+      group: "primary",
     },
     {
       key: "careers",
@@ -48,15 +56,9 @@ export function appNav(username: string | null): AppNavItem[] {
       href: "/careers",
       icon: Briefcase,
       soon: true,
+      group: "secondary",
     },
-    {
-      key: "saved",
-      label: "Saved Posts",
-      href: "/saved",
-      icon: Bookmark,
-      soon: true,
-    },
-    { key: "settings", label: "Settings", href: "/settings", icon: Settings },
+    { key: "settings", label: "Settings", href: "/settings", icon: Settings, group: "secondary" },
   ];
 }
 

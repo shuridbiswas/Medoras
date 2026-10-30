@@ -50,9 +50,10 @@ export default function Page() {
           content may be visible. Do not assume a post has been reviewed.
         </li>
         <li>
-          <strong>Reporting and blocking tools are not built yet.</strong> They
-          are planned. Until then, use the{" "}
-          <a href="/contact">contact page</a> to raise a concern.
+          <strong>Reporting tools are not built yet.</strong> They are planned.
+          Until then, use the <a href="/contact">contact page</a> to raise a
+          concern. You can block a member from their profile: blocked members
+          can&apos;t connect with or follow you, and they aren&apos;t told.
         </li>
       </ul>
 

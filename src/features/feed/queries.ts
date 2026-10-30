@@ -46,14 +46,95 @@ const count = (rows: { count: number }[] | null | undefined) =>
 export const encodeCursor = (post: { created_at: string; id: string }) =>
   `${post.created_at}|${post.id}`;
 
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/** Adds the viewer-specific flags (liked, saved, own) to raw post rows. */
+async function hydratePosts(
+  supabase: Supabase,
+  viewerId: string,
+  rows: PostQueryRow[],
+): Promise<FeedPost[]> {
+  const ids = rows.map((r) => r.id);
+  let liked = new Set<string>();
+  let saved = new Set<string>();
+  if (ids.length > 0) {
+    const [likes, saves] = await Promise.all([
+      supabase
+        .from("post_likes")
+        .select("post_id")
+        .eq("user_id", viewerId)
+        .in("post_id", ids),
+      supabase
+        .from("saved_items")
+        .select("item_id")
+        .eq("user_id", viewerId)
+        .eq("item_type", "post")
+        .in("item_id", ids),
+    ]);
+    liked = new Set((likes.data ?? []).map((l) => l.post_id));
+    saved = new Set((saves.data ?? []).map((i) => i.item_id));
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    category: r.category,
+    body: r.body,
+    created_at: r.created_at,
+    edited_at: r.edited_at,
+    author: r.author as PostAuthor,
+    likeCount: count(r.likes),
+    commentCount: count(r.comments),
+    likedByMe: liked.has(r.id),
+    savedByMe: saved.has(r.id),
+    isOwn: r.author?.id === viewerId,
+  }));
+}
+
+/** Posts by id (the order of `ids` is kept). Missing or hidden posts are simply absent. */
+export async function getPostsByIds(
+  viewerId: string,
+  ids: string[],
+): Promise<{ posts: FeedPost[]; failed?: boolean }> {
+  if (ids.length === 0) return { posts: [] };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .in("id", ids)
+    .overrideTypes<PostQueryRow[], { merge: false }>();
+  if (error || !data) return { posts: [], failed: true };
+
+  const rows = data.filter((r) => r.author !== null);
+  const posts = await hydratePosts(supabase, viewerId, rows);
+  const position = new Map(ids.map((id, i) => [id, i]));
+  return {
+    posts: posts.sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0)),
+  };
+}
+
 export async function getFeedPage(
   viewerId: string,
-  { cursor, category, authorId }: FeedRequest = {},
+  { cursor, category, authorId, scope }: FeedRequest = {},
   pageSize = FEED_PAGE_SIZE,
 ): Promise<FeedPage & { failed?: boolean }> {
   const supabase = await createClient();
 
+  let followedIds: string[] | undefined;
+  if (scope === "following") {
+    // Only posts by members the viewer follows (follows are separate from connections).
+    const { data: follows, error: followError } = await supabase
+      .from("follows")
+      .select("followee_id")
+      .eq("follower_id", viewerId)
+      .limit(500)
+      .overrideTypes<{ followee_id: string }[], { merge: false }>();
+    if (followError) return { posts: [], nextCursor: null, failed: true };
+    followedIds = (follows ?? []).map((f) => f.followee_id);
+    if (followedIds.length === 0) return { posts: [], nextCursor: null };
+  }
+
   let query = supabase.from("posts").select(POST_SELECT);
+  if (followedIds) query = query.in("author_id", followedIds);
   if (category) query = query.eq("category", category);
   if (authorId) query = query.eq("author_id", authorId);
   if (cursor) {
@@ -76,31 +157,7 @@ export async function getFeedPage(
   const hasMore = data.length > pageSize;
   const pageRows = rows.slice(0, pageSize);
 
-  let liked = new Set<string>();
-  if (pageRows.length > 0) {
-    const { data: mine } = await supabase
-      .from("post_likes")
-      .select("post_id")
-      .eq("user_id", viewerId)
-      .in(
-        "post_id",
-        pageRows.map((r) => r.id),
-      );
-    liked = new Set((mine ?? []).map((l) => l.post_id));
-  }
-
-  const posts: FeedPost[] = pageRows.map((r) => ({
-    id: r.id,
-    category: r.category,
-    body: r.body,
-    created_at: r.created_at,
-    edited_at: r.edited_at,
-    author: r.author as PostAuthor,
-    likeCount: count(r.likes),
-    commentCount: count(r.comments),
-    likedByMe: liked.has(r.id),
-    isOwn: r.author?.id === viewerId,
-  }));
+  const posts = await hydratePosts(supabase, viewerId, pageRows);
 
   const last = pageRows.at(-1);
   return {

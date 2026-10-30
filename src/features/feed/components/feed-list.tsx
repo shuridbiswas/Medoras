@@ -16,11 +16,13 @@ export function FeedList({
   initial,
   category,
   authorId,
+  scope,
   empty,
 }: {
   initial: FeedPage;
   category?: PostCategory;
   authorId?: string;
+  scope?: "following";
   empty: React.ReactNode;
 }) {
   const [extra, setExtra] = useState<FeedPost[]>([]);
@@ -41,7 +43,7 @@ export function FeedList({
     if (!cursor) return;
     setError(null);
     startTransition(async () => {
-      const result = await loadMorePosts({ cursor, category, authorId });
+      const result = await loadMorePosts({ cursor, category, authorId, scope });
       if (result.ok) {
         setExtra((list) => [...list, ...result.page.posts]);
         setCursor(result.page.nextCursor);

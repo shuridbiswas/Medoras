@@ -1,25 +1,32 @@
 import { BookOpen, GraduationCap, MapPin, Pencil, Sprout } from "lucide-react";
+import { LogoMark } from "@/components/brand/logo";
 import { LinkButton } from "@/components/ui/link-button";
 import {
   careerStageLabel,
-  fieldLabels,
   generalLocation,
 } from "@/features/profile/format";
 import { fullName, type PublicProfile } from "@/features/profile/visibility";
+import { VerificationChip } from "@/components/verification-chip";
 
+/**
+ * The identity card: cover, photo, name and the few facts people scan first. Credentials are not
+ * verified in Medyra yet, so the card says "Unverified" instead of showing a badge. `actions`
+ * holds connect / follow / block controls when someone else is looking.
+ */
 export function ProfileHeader({
   profile,
   isOwner,
   avatarSrc,
   coverSrc,
+  actions,
 }: {
   profile: PublicProfile;
   isOwner: boolean;
   avatarSrc: string | null;
   coverSrc: string | null;
+  actions?: React.ReactNode;
 }) {
   const name = fullName(profile);
-  const fields = fieldLabels(profile.fields);
   const location = generalLocation(profile.location_label, profile.country);
   const stage = careerStageLabel(profile.career_stage);
   const studyLine = [profile.qualification, profile.institution]
@@ -27,32 +34,22 @@ export function ProfileHeader({
     .join(" at ");
 
   return (
-    <header className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_24px_60px_-40px_rgba(110,16,38,0.4)]">
-      <div className="relative h-36 bg-maroon-700 sm:h-52">
+    <header className="overflow-hidden rounded-3xl border border-border bg-surface shadow-[0_24px_60px_-44px_rgba(110,16,38,0.45)]">
+      <div className="relative h-32 overflow-hidden bg-maroon-100 sm:h-36">
         {coverSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverSrc} alt="" className="size-full object-cover" />
         ) : (
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 800 200"
-            preserveAspectRatio="xMidYMid slice"
-            className="absolute inset-0 size-full opacity-25"
-            fill="none"
-            stroke="white"
-          >
-            <circle cx="650" cy="40" r="60" />
-            <circle cx="650" cy="40" r="110" />
-            <circle cx="650" cy="40" r="170" />
-            <circle cx="650" cy="40" r="240" />
-            <path d="M0 150c120-60 220 30 380-20s260-30 420-80" />
-          </svg>
+          <>
+            <LogoMark className="absolute -top-8 -right-6 h-48 w-auto opacity-[0.22]" />
+            <LogoMark className="absolute top-12 -left-10 h-32 w-auto opacity-[0.12]" />
+          </>
         )}
       </div>
 
-      <div className="px-5 pb-6 sm:px-8">
-        <div className="relative -mt-14 flex items-end justify-between gap-4 sm:-mt-[4.5rem]">
-          <span className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-surface bg-maroon-100 text-4xl font-bold text-maroon-700 sm:size-36 sm:text-5xl">
+      <div className="px-5 pb-6">
+        <div className="relative -mt-14 flex justify-center">
+          <span className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-surface bg-maroon-100 text-4xl font-bold text-maroon-700">
             {avatarSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -66,27 +63,16 @@ export function ProfileHeader({
               </span>
             )}
           </span>
-          {isOwner ? (
-            <LinkButton
-              href="/profile/edit"
-              variant="outline"
-              className="mb-1 h-10 border-maroon-200 px-4 text-sm font-semibold text-maroon-700"
-            >
-              <Pencil className="size-4" aria-hidden="true" />
-              Edit Profile
-            </LinkButton>
-          ) : null}
         </div>
 
-        <div className="mt-4">
-          <h1 className="text-2xl font-bold leading-tight text-maroon-900 sm:text-3xl">
-            {name}
-          </h1>
-          <p className="text-sm text-muted-foreground">@{profile.username}</p>
+        <div className="mt-3 text-center">
+          <h1 className="text-2xl leading-tight font-bold text-maroon-900">{name}</h1>
+          <p className="mt-0.5 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            @{profile.username}
+            <VerificationChip />
+          </p>
           {profile.headline ? (
-            <p className="mt-2 text-base text-maroon-900/90 sm:text-lg">
-              {profile.headline}
-            </p>
+            <p className="mt-2 text-base text-maroon-900/90">{profile.headline}</p>
           ) : isOwner ? (
             <p className="mt-2 text-sm text-muted-foreground">
               Add a headline so people know what you do.
@@ -94,47 +80,44 @@ export function ProfileHeader({
           ) : null}
         </div>
 
-        <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+        <ul className="mt-5 space-y-3 text-sm">
           {studyLine ? (
-            <li className="flex items-center gap-1.5">
-              <GraduationCap
-                className="size-4 text-maroon-600"
-                aria-hidden="true"
-              />
-              <span>{studyLine}</span>
+            <li className="flex items-start gap-3">
+              <GraduationCap className="mt-0.5 size-4.5 shrink-0 text-maroon-600" aria-hidden="true" />
+              <span className="text-maroon-900/90">{studyLine}</span>
             </li>
           ) : null}
           {profile.specialty ? (
-            <li className="flex items-center gap-1.5">
-              <BookOpen className="size-4 text-maroon-600" aria-hidden="true" />
-              <span>{profile.specialty}</span>
+            <li className="flex items-start gap-3">
+              <BookOpen className="mt-0.5 size-4.5 shrink-0 text-maroon-600" aria-hidden="true" />
+              <span className="text-maroon-900/90">{profile.specialty}</span>
             </li>
           ) : null}
           {location ? (
-            <li className="flex items-center gap-1.5">
-              <MapPin className="size-4 text-maroon-600" aria-hidden="true" />
-              <span>{location}</span>
+            <li className="flex items-start gap-3">
+              <MapPin className="mt-0.5 size-4.5 shrink-0 text-maroon-600" aria-hidden="true" />
+              <span className="text-maroon-900/90">{location}</span>
             </li>
           ) : null}
           {stage ? (
-            <li className="flex items-center gap-1.5">
-              <Sprout className="size-4 text-maroon-600" aria-hidden="true" />
-              <span>{stage}</span>
+            <li className="flex items-start gap-3">
+              <Sprout className="mt-0.5 size-4.5 shrink-0 text-maroon-600" aria-hidden="true" />
+              <span className="text-maroon-900/90">{stage}</span>
             </li>
           ) : null}
         </ul>
 
-        {fields.length ? (
-          <ul aria-label="Fields" className="mt-4 flex flex-wrap gap-2">
-            {fields.map((field) => (
-              <li
-                key={field}
-                className="rounded-full bg-maroon-50 px-3 py-1 text-xs font-semibold text-maroon-700"
-              >
-                {field}
-              </li>
-            ))}
-          </ul>
+        {isOwner ? (
+          <LinkButton
+            href="/profile/edit"
+            variant="outline"
+            className="mt-5 h-11 w-full rounded-full border-maroon-200 text-sm font-semibold text-maroon-700"
+          >
+            <Pencil className="size-4" aria-hidden="true" />
+            Edit Profile
+          </LinkButton>
+        ) : actions ? (
+          <div className="mt-5 flex justify-center">{actions}</div>
         ) : null}
       </div>
     </header>

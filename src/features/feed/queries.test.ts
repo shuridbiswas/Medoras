@@ -85,9 +85,46 @@ describe("getFeedPage", () => {
     ]);
   });
 
-  it("does not look up likes when there are no posts", async () => {
+  it("does not look up likes or saves when there are no posts", async () => {
     await getFeedPage(ME, {});
     expect(db.ops.map((o) => o.table)).toEqual(["posts"]);
+  });
+
+  it("marks posts the viewer saved, from the viewer's own saves only", async () => {
+    db = makeDb((op) => {
+      if (op.table === "posts") return { data: [row(1), row(2)] };
+      if (op.table === "saved_items") return { data: [{ item_id: row(2).id }] };
+      return { data: [] };
+    });
+    const page = await getFeedPage(ME, {}, 15);
+    expect(page.posts.map((p) => p.savedByMe)).toEqual([false, true]);
+    const saves = db.ops.find((o) => o.table === "saved_items")!;
+    expect(saves.filters).toContainEqual(["user_id", ME]);
+    expect(saves.filters).toContainEqual(["item_type", "post"]);
+  });
+
+  it("limits the Following view to posts by the members the viewer follows", async () => {
+    db = makeDb((op) => {
+      if (op.table === "follows") return { data: [{ followee_id: OTHER }] };
+      if (op.table === "posts") return { data: [row(1)] };
+      return { data: [] };
+    });
+    await getFeedPage(ME, { scope: "following" });
+    expect(db.ops[0]).toMatchObject({ table: "follows" });
+    expect(db.ops[0].filters).toContainEqual(["follower_id", ME]);
+    const posts = db.ops.find((o) => o.table === "posts")!;
+    expect(posts.filters).toContainEqual(["author_id", [OTHER]]);
+  });
+
+  it("shows an empty Following view without querying posts when the viewer follows nobody", async () => {
+    db = makeDb(() => ({ data: [] }));
+    expect(await getFeedPage(ME, { scope: "following" })).toEqual({ posts: [], nextCursor: null });
+    expect(db.ops.map((o) => o.table)).toEqual(["follows"]);
+  });
+
+  it("reports a failure when the follow list cannot be read", async () => {
+    db = makeDb(() => ({ error: { message: "boom" } }));
+    expect(await getFeedPage(ME, { scope: "following" })).toMatchObject({ posts: [], failed: true });
   });
 
   it("reports a failure instead of pretending the feed is empty", async () => {

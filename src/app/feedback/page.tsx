@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { requireMember } from "@/lib/auth/session";
 import { productbridgeLinks } from "@/features/feedback/config";
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function FeedbackPage() {
   return (
-    <div className="min-h-dvh bg-sand/60 pb-20 md:pb-0">
+    <AppFrame>
       <Suspense
         fallback={
           <div role="status" className="flex min-h-dvh items-center justify-center">
@@ -23,7 +24,7 @@ export default function FeedbackPage() {
       >
         <FeedbackContent />
       </Suspense>
-    </div>
+    </AppFrame>
   );
 }
 

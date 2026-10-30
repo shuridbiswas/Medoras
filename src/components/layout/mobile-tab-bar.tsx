@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Home, LogOut, Menu, PenSquare, Search, User } from "lucide-react";
+import { Home, LogOut, Menu, PenSquare, User, UsersRound } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { signOut } from "@/features/auth/actions";
 import { appNav, isActivePath } from "@/features/home/nav";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 const tab =
   "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[0.7rem] font-medium outline-none transition-colors focus-visible:bg-maroon-50";
 
-/** Phone navigation: the five things members need most, with the composer one tap away. */
+/** Phone navigation: the things members need most, with the composer one tap away. */
 export function MobileTabBar({ username }: { username: string | null }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -20,7 +20,7 @@ export function MobileTabBar({ username }: { username: string | null }) {
 
   const links = [
     { href: "/", label: "Home", icon: Home },
-    { href: "/search", label: "Search", icon: Search },
+    { href: "/network", label: "Network", icon: UsersRound },
     { href: "/#composer", label: "Post", icon: PenSquare, primary: true },
     { href: profileHref, label: "Profile", icon: User },
   ];

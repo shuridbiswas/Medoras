@@ -14,6 +14,8 @@ const actions = vi.hoisted(() => ({
   loadMorePosts: vi.fn(),
 }));
 vi.mock("@/features/feed/actions", () => actions);
+const saved = vi.hoisted(() => ({ setSaved: vi.fn() }));
+vi.mock("@/features/saved/actions", () => saved);
 
 const { PostCard } = await import("@/features/feed/components/post-card");
 const { FeedList } = await import("@/features/feed/components/feed-list");
@@ -38,6 +40,7 @@ const post = (over: Partial<FeedPost> = {}): FeedPost => ({
   likeCount: 2,
   commentCount: 1,
   likedByMe: false,
+  savedByMe: false,
   isOwn: false,
   ...over,
 });
@@ -74,6 +77,38 @@ describe("PostCard", () => {
       <PostCard post={post({ edited_at: "2026-10-29T00:00:00Z" })} onDeleted={vi.fn()} />,
     );
     expect(screen.getByText(/Edited/)).toBeInTheDocument();
+  });
+
+  it("saves a post for later and shows it as saved", async () => {
+    const user = userEvent.setup();
+    saved.setSaved.mockResolvedValue({ ok: true, saved: true });
+    render(<PostCard post={post()} onDeleted={vi.fn()} />);
+    const button = screen.getByRole("button", { name: /save this post/i });
+    expect(button).toHaveAttribute("aria-pressed", "false");
+    await user.click(button);
+    expect(saved.setSaved).toHaveBeenCalledWith("p1", true);
+    expect(await screen.findByRole("button", { name: /remove from saved/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("puts the bookmark back and explains when saving fails", async () => {
+    const user = userEvent.setup();
+    saved.setSaved.mockResolvedValue({ ok: false, error: "That post is no longer available." });
+    render(<PostCard post={post()} onDeleted={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /save this post/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/no longer available/);
+    expect(screen.getByRole("button", { name: /save this post/i })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("tells a saved list to drop the post once it is unsaved", async () => {
+    const user = userEvent.setup();
+    const onUnsaved = vi.fn();
+    saved.setSaved.mockResolvedValue({ ok: true, saved: false });
+    render(<PostCard post={post({ savedByMe: true })} onDeleted={vi.fn()} onUnsaved={onUnsaved} />);
+    await user.click(screen.getByRole("button", { name: /remove from saved/i }));
+    await waitFor(() => expect(onUnsaved).toHaveBeenCalledWith("p1"));
   });
 
   it("keeps the member's edits when saving fails", async () => {
@@ -451,19 +486,33 @@ describe("FeedNav", () => {
   it("links to the latest feed and every category, marking the current one", () => {
     render(<FeedNav active="questions" />);
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(8);
-    expect(screen.getByRole("link", { name: "Latest" })).toHaveAttribute("href", "/");
+    // Two views (Latest, Following) and eight chips (All plus seven categories).
+    expect(links).toHaveLength(10);
     expect(screen.getByRole("link", { name: "Questions" })).toHaveAttribute(
       "href",
       "/?category=questions",
     );
     expect(screen.getByRole("link", { name: "Questions" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Latest" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "All" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "All" })).not.toHaveAttribute("aria-current");
   });
 
-  it("marks Latest when no category is chosen", () => {
+  it("marks Latest and All when nothing is chosen", () => {
     render(<FeedNav />);
     expect(screen.getByRole("link", { name: "Latest" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "All" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Following" })).toHaveAttribute("href", "/?feed=following");
+  });
+
+  it("keeps the Following view when a category is picked, and the category when the view changes", () => {
+    render(<FeedNav scope="following" active="questions" />);
+    expect(screen.getByRole("link", { name: "Following" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Latest" })).toHaveAttribute("href", "/?category=questions");
+    expect(screen.getByRole("link", { name: "Questions" })).toHaveAttribute(
+      "href",
+      "/?feed=following&category=questions",
+    );
+    expect(screen.getByRole("link", { name: "All" })).toHaveAttribute("href", "/?feed=following");
   });
 });
 

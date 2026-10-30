@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { avatarUrl, coverUrl, requireMember } from "@/lib/auth/session";
 import { FormSection } from "@/features/profile/components/edit/form-parts";
@@ -47,7 +48,7 @@ const sections = [
 
 export default function EditProfilePage() {
   return (
-    <div className="min-h-dvh bg-sand/60 pb-20 md:pb-0">
+    <AppFrame>
       <Suspense
         fallback={
           <div
@@ -61,7 +62,7 @@ export default function EditProfilePage() {
       >
         <EditContent />
       </Suspense>
-    </div>
+    </AppFrame>
   );
 }
 

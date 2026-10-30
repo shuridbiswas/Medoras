@@ -8,6 +8,10 @@ const ALLOWED_PREFIXES = [
   "/profile",
   "/settings",
   "/search",
+  "/network",
+  "/notifications",
+  "/saved",
+  "/post",
 ] as const;
 
 export function safeNextPath(

@@ -181,6 +181,19 @@ delete from public.post_likes where user_id = '<ACCOUNT A USER ID>' returning po
 rollback;
 ```
 
+## 11b. Network, saved posts and notifications (two accounts)
+
+With Account A and Account B (private windows) signed in:
+
+1. As A, open `/network`, find B (try the filters) and press **Connect**. The card shows "Request sent". Nothing else changes for B except a bell badge.
+2. As B: the bell shows 1 and **Network** shows a badge. Open `/notifications` ("A sent you a connection request"; no post text anywhere) and `/network/requests`, then **Accept**. A's bell now shows "B accepted your connection request".
+3. Both profiles show 1 connection. Try **Follow** from A: a follow is separate from the connection and appears in the Following count. B's home page "Following" tab shows nothing until B follows someone.
+4. Have B comment on A's post: A gets "B commented on your post" and clicking it opens `/post/<id>`. Have A comment later on a post B commented on: B gets "also commented on a post you commented on".
+5. Bookmark a post (the ribbon icon). It appears in `/saved`; removing it there takes it off the list. The other account's `/saved` stays empty.
+6. In Settings, switch off "Comments and replies on posts", then comment again: no new notification.
+7. On B's profile as A press **Block this member** and confirm: the connection and follows disappear, B can no longer send A a request or follow (B just sees "You can't do that with this member"), and B is not told. Unblock in Settings.
+8. Try sending a request to the same person twice, or to yourself: it is refused.
+
 ## 12. Other things worth trying
 
 - Sign in with a wrong password: you get one generic error (no hint whether the email exists).
@@ -221,7 +234,7 @@ Every service below is optional. With none configured, everything above still wo
 
 ## Cleaning up
 
-Delete test users in Authentication > Users (their profiles, posts, likes, comments and images' rows cascade). Remove stored images in Storage if you want a clean slate.
+Delete test users in Authentication > Users (their profiles, posts, likes, comments, connections, follows, blocks, saved items, notifications and images' rows cascade). Remove stored images in Storage if you want a clean slate.
 
 ## Automated checks
 

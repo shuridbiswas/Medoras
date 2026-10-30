@@ -1,20 +1,24 @@
+import Link from "next/link";
 import {
-  Briefcase,
+  BookOpen,
   Check,
-  Compass,
   GraduationCap,
   HandHeart,
-  Lightbulb,
-  Sparkles,
-  Target,
+  Pencil,
+  Stethoscope,
+  User,
+  UsersRound,
 } from "lucide-react";
-import { EmptyState } from "@/components/layout/empty-state";
+import { MemberAvatar } from "@/components/member-avatar";
 import {
   employmentTypeLabel,
+  fieldLabels,
   formatMonthRange,
   formatYearRange,
 } from "@/features/profile/format";
 import type { PublicProfile } from "@/features/profile/visibility";
+import type { NetworkCounts, NetworkMember } from "@/features/network/types";
+import { avatarUrl } from "@/lib/storage-url";
 import type {
   EducationRow,
   ExperienceRow,
@@ -22,29 +26,48 @@ import type {
 } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
+type IconType = React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+
 function Card({
+  id,
   title,
   icon: Icon,
+  edit,
   children,
   className,
 }: {
+  id: string;
   title: string;
-  icon?: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  icon: IconType;
+  /** Owner-only link to the matching section of the edit page. */
+  edit?: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <section
-      className={cn(
-        "rounded-2xl border border-border bg-surface p-5 sm:p-6",
-        className,
-      )}
+      aria-labelledby={id}
+      className={cn("rounded-3xl border border-border bg-surface p-5 sm:p-6", className)}
     >
-      <h2 className="flex items-center gap-2 text-lg font-bold text-maroon-900">
-        {Icon ? <Icon className="size-5 text-maroon-600" aria-hidden /> : null}
-        {title}
-      </h2>
-      <div className="mt-3">{children}</div>
+      <div className="flex items-center justify-between gap-3">
+        <h2 id={id} className="flex items-center gap-3 text-lg font-bold text-maroon-900">
+          <span className="flex size-9 items-center justify-center rounded-full bg-maroon-50 text-maroon-700">
+            <Icon className="size-4.5" aria-hidden />
+          </span>
+          {title}
+        </h2>
+        {edit ? (
+          <Link
+            href={edit}
+            aria-label={`Edit ${title.toLowerCase()}`}
+            className="inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-maroon-700 transition-colors hover:text-maroon-900 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <Pencil className="size-3.5" aria-hidden="true" />
+            Edit
+          </Link>
+        ) : null}
+      </div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -57,17 +80,19 @@ const Prose = ({ children }: { children: string }) => (
 
 const Chips = ({
   items,
+  label,
   tone = "soft",
 }: {
   items: string[];
+  label: string;
   tone?: "soft" | "outline";
 }) => (
-  <ul className="flex flex-wrap gap-2">
+  <ul aria-label={label} className="flex flex-wrap gap-2">
     {items.map((item) => (
       <li
         key={item}
         className={cn(
-          "rounded-full px-3 py-1 text-sm",
+          "rounded-full px-3.5 py-1.5 text-sm",
           tone === "soft"
             ? "bg-maroon-50 font-medium text-maroon-700"
             : "border border-border bg-surface text-maroon-900/85",
@@ -79,299 +104,306 @@ const Chips = ({
   </ul>
 );
 
+const Hint = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-sm text-muted-foreground">{children}</p>
+);
+
 const names = (skills: SkillRow[], kind: SkillRow["kind"]) =>
   skills.filter((s) => s.kind === kind).map((s) => s.name);
 
-export function AboutSection({
+export function AboutCard({
   profile,
-  skills,
   isOwner,
 }: {
   profile: PublicProfile;
-  skills: SkillRow[];
   isOwner: boolean;
 }) {
-  const interests = names(skills, "interest");
-  const hasAnything =
-    profile.bio ||
-    profile.professional_journey ||
-    profile.career_aspirations ||
-    interests.length;
-
-  if (!hasAnything) {
-    return (
-      <EmptyState
-        icon={Sparkles}
-        title={
-          isOwner
-            ? "Tell your story"
-            : `${profile.first_name} hasn't added an About section yet`
-        }
-        description={
-          isOwner
-            ? "Share a short bio, your professional journey and where you want to go. It helps others connect with you."
-            : "Check back soon."
-        }
-        action={
-          isOwner
-            ? { href: "/profile/edit#about", label: "Write your About section" }
-            : undefined
-        }
-      />
-    );
-  }
+  const hasText =
+    profile.bio || profile.professional_journey || profile.career_aspirations;
+  const flags = [
+    profile.open_to_mentor ? "Open to mentorship" : null,
+    profile.looking_for_mentorship ? "Looking for mentorship" : null,
+  ].filter((f): f is string => Boolean(f));
 
   return (
-    <div className="space-y-5">
-      {profile.bio ? (
-        <Card title="About">
-          <Prose>{profile.bio}</Prose>
-        </Card>
-      ) : null}
-      {profile.professional_journey ? (
-        <Card title="Professional journey" icon={Compass}>
-          <Prose>{profile.professional_journey}</Prose>
-        </Card>
-      ) : null}
-      {profile.career_aspirations ? (
-        <Card title="Career aspirations" icon={Target}>
-          <Prose>{profile.career_aspirations}</Prose>
-        </Card>
-      ) : null}
-      {interests.length ? (
-        <Card title="Fields of interest" icon={Lightbulb}>
-          <Chips items={interests} />
-        </Card>
-      ) : null}
-    </div>
-  );
-}
-
-export function MentorshipCard({
-  profile,
-  skills,
-  isOwner,
-}: {
-  profile: PublicProfile;
-  skills: SkillRow[];
-  isOwner: boolean;
-}) {
-  const areas = names(skills, "mentorship_area");
-  const active =
-    profile.looking_for_mentorship ||
-    profile.open_to_mentor ||
-    areas.length > 0;
-
-  return (
-    <Card title="Mentorship" icon={HandHeart}>
-      {active ? (
+    <Card id="profile-about" title="About me" icon={User} edit={isOwner ? "/profile/edit#about" : undefined}>
+      {hasText ? (
         <div className="space-y-4">
-          <ul className="space-y-2">
-            {profile.looking_for_mentorship ? (
-              <li className="flex items-center gap-2 text-sm font-medium text-maroon-900">
-                <Check className="size-4 text-maroon-600" aria-hidden="true" />
-                Looking for mentorship
-              </li>
-            ) : null}
-            {profile.open_to_mentor ? (
-              <li className="flex items-center gap-2 text-sm font-medium text-maroon-900">
-                <Check className="size-4 text-maroon-600" aria-hidden="true" />
-                Interested in becoming a mentor
-              </li>
-            ) : null}
-          </ul>
-          {areas.length ? (
+          {profile.bio ? <Prose>{profile.bio}</Prose> : null}
+          {profile.professional_journey ? (
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Areas of expertise or interest
-              </p>
-              <Chips items={areas} tone="outline" />
+              <h3 className="text-sm font-semibold text-maroon-900">Professional journey</h3>
+              <Prose>{profile.professional_journey}</Prose>
+            </div>
+          ) : null}
+          {profile.career_aspirations ? (
+            <div>
+              <h3 className="text-sm font-semibold text-maroon-900">Career aspirations</h3>
+              <Prose>{profile.career_aspirations}</Prose>
             </div>
           ) : null}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
+        <Hint>
           {isOwner
-            ? "Let others know if you're looking for a mentor or open to mentoring."
-            : "No mentorship preferences shared yet."}
-        </p>
+            ? "Tell people who you are, what you study or do, and where you want to go."
+            : `${profile.first_name} hasn't added an About section yet.`}
+        </Hint>
       )}
-      <p className="mt-4 border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-        Mentorship preferences are self-reported. They are not verified
-        professional credentials.
-      </p>
+
+      {flags.length ? (
+        <div className="mt-5 border-t border-border pt-4">
+          <ul aria-label="Mentorship" className="flex flex-wrap gap-2">
+            {flags.map((f) => (
+              <li
+                key={f}
+                className="inline-flex items-center gap-2 rounded-full border border-maroon-200 bg-maroon-50 px-3.5 py-1.5 text-sm font-medium text-maroon-800"
+              >
+                <HandHeart className="size-4" aria-hidden="true" />
+                {f}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Mentorship preferences are self-reported. They are not verified professional
+            credentials.
+          </p>
+        </div>
+      ) : null}
     </Card>
   );
 }
 
-export function EducationSection({
-  items,
-  isOwner,
-  firstName,
-}: {
-  items: EducationRow[];
-  isOwner: boolean;
-  firstName: string;
-}) {
-  if (!items.length) {
-    return (
-      <EmptyState
-        icon={GraduationCap}
-        title={
-          isOwner
-            ? "Add your education"
-            : `${firstName} hasn't added education yet`
-        }
-        description={
-          isOwner
-            ? "Programs, degrees and certifications help people understand your path."
-            : "Check back soon."
-        }
-        action={
-          isOwner
-            ? { href: "/profile/edit#education", label: "Add education" }
-            : undefined
-        }
-      />
-    );
-  }
-  return (
-    <ol className="space-y-5">
-      {items.map((e) => (
-        <li
-          key={e.id}
-          className="relative rounded-2xl border border-border bg-surface p-5 sm:p-6"
-        >
-          <h3 className="text-base font-semibold text-maroon-900">
-            {e.institution}
-          </h3>
-          <p className="text-sm text-maroon-900/85">
-            {[e.qualification, e.field_of_study].filter(Boolean).join(", ")}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {formatYearRange(e.start_year, e.end_year, e.currently_studying) ??
-              "Dates not provided"}
-            {e.currently_studying ? " · Currently studying" : ""}
-          </p>
-          {e.description ? (
-            <div className="mt-3">
-              <Prose>{e.description}</Prose>
-            </div>
-          ) : null}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-export function ExperienceSection({
-  items,
-  isOwner,
-  firstName,
-}: {
-  items: ExperienceRow[];
-  isOwner: boolean;
-  firstName: string;
-}) {
-  if (!items.length) {
-    return (
-      <EmptyState
-        icon={Briefcase}
-        title={
-          isOwner
-            ? "Add your experience"
-            : `${firstName} hasn't added experience yet`
-        }
-        description={
-          isOwner
-            ? "Jobs, placements, internships and volunteer work all count."
-            : "Check back soon."
-        }
-        action={
-          isOwner
-            ? { href: "/profile/edit#experience", label: "Add experience" }
-            : undefined
-        }
-      />
-    );
-  }
-  return (
-    <ol className="space-y-5">
-      {items.map((x) => (
-        <li
-          key={x.id}
-          className="rounded-2xl border border-border bg-surface p-5 sm:p-6"
-        >
-          <h3 className="text-base font-semibold text-maroon-900">{x.title}</h3>
-          <p className="text-sm text-maroon-900/85">
-            {[x.organization, employmentTypeLabel(x.employment_type)]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {formatMonthRange(x.start_date, x.end_date, x.is_current)}
-          </p>
-          {x.description ? (
-            <div className="mt-3">
-              <Prose>{x.description}</Prose>
-            </div>
-          ) : null}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-export function SkillsSection({
+export function InterestsCard({
+  profile,
   skills,
   isOwner,
+}: {
+  profile: PublicProfile;
+  skills: SkillRow[];
+  isOwner: boolean;
+}) {
+  const fields = fieldLabels(profile.fields);
+  const groups = [
+    { label: "Fields", items: fields, tone: "soft" as const },
+    { label: "Interests", items: names(skills, "interest"), tone: "soft" as const },
+    { label: "Skills", items: names(skills, "skill"), tone: "outline" as const },
+    {
+      label: "Mentorship areas",
+      items: names(skills, "mentorship_area"),
+      tone: "outline" as const,
+    },
+  ].filter((g) => g.items.length > 0);
+
+  return (
+    <Card
+      id="profile-interests"
+      title="Skills & interests"
+      icon={Stethoscope}
+      edit={isOwner ? "/profile/edit#skills" : undefined}
+    >
+      {groups.length ? (
+        <div className="space-y-4">
+          {groups.map((g) => (
+            <div key={g.label}>
+              {groups.length > 1 ? (
+                <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  {g.label}
+                </h3>
+              ) : null}
+              <Chips items={g.items} label={g.label} tone={g.tone} />
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">
+            Skills and interests are self-reported and have not been verified.
+          </p>
+        </div>
+      ) : (
+        <Hint>
+          {isOwner
+            ? "List what you're good at and what you want to learn. They're self-reported, so be honest and specific."
+            : `${profile.first_name} hasn't added skills or interests yet.`}
+        </Hint>
+      )}
+    </Card>
+  );
+}
+
+type TimelineEntry = {
+  key: string;
+  kind: "education" | "experience";
+  title: string;
+  subtitle: string;
+  when: string;
+  current: boolean;
+  /** Sort key: the start date as YYYYMM. */
+  start: number;
+};
+
+function timeline(education: EducationRow[], experience: ExperienceRow[]): TimelineEntry[] {
+  const entries: TimelineEntry[] = [
+    ...education.map((e) => ({
+      key: `e-${e.id}`,
+      kind: "education" as const,
+      title: [e.qualification, e.field_of_study].filter(Boolean).join(", "),
+      subtitle: e.institution,
+      when: formatYearRange(e.start_year, e.end_year, e.currently_studying) ?? "",
+      current: e.currently_studying,
+      start: (e.start_year ?? 0) * 100,
+    })),
+    ...experience.map((x) => ({
+      key: `x-${x.id}`,
+      kind: "experience" as const,
+      title: x.title,
+      subtitle: [x.organization, employmentTypeLabel(x.employment_type)]
+        .filter(Boolean)
+        .join(" · "),
+      when: formatMonthRange(x.start_date, x.end_date, x.is_current),
+      current: x.is_current,
+      start: Number(x.start_date.slice(0, 4)) * 100 + Number(x.start_date.slice(5, 7)),
+    })),
+  ];
+  // Current roles first, then newest start date.
+  return entries.sort((a, b) => Number(b.current) - Number(a.current) || b.start - a.start);
+}
+
+const TIMELINE_LIMIT = 8;
+
+export function TimelineCard({
+  education,
+  experience,
+  isOwner,
   firstName,
 }: {
-  skills: SkillRow[];
+  education: EducationRow[];
+  experience: ExperienceRow[];
   isOwner: boolean;
   firstName: string;
 }) {
-  const list = names(skills, "skill");
-  const interests = names(skills, "interest");
+  const entries = timeline(education, experience);
+  const shown = entries.slice(0, TIMELINE_LIMIT);
 
-  if (!list.length && !interests.length) {
-    return (
-      <EmptyState
-        icon={Sparkles}
-        title={
-          isOwner
-            ? "Add skills and interests"
-            : `${firstName} hasn't added skills yet`
-        }
-        description={
-          isOwner
-            ? "List what you're good at and what you want to learn. They're self-reported, so be honest and specific."
-            : "Check back soon."
-        }
-        action={
-          isOwner
-            ? { href: "/profile/edit#skills", label: "Add skills" }
-            : undefined
-        }
-      />
-    );
-  }
   return (
-    <div className="space-y-5">
-      {list.length ? (
-        <Card title="Skills">
-          <Chips items={list} />
-        </Card>
+    <Card
+      id="profile-timeline"
+      title="Education & experience"
+      icon={GraduationCap}
+      edit={isOwner ? "/profile/edit#education" : undefined}
+    >
+      {shown.length ? (
+        <>
+          <ol className="relative space-y-5 border-l border-maroon-200 pl-6">
+            {shown.map((e) => (
+              <li key={e.key} className="relative">
+                <span
+                  aria-hidden="true"
+                  className="absolute top-1.5 -left-[1.82rem] size-2.5 rounded-full bg-maroon-700 ring-4 ring-surface"
+                />
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+                  <h3 className="text-base font-semibold text-maroon-900">{e.title}</h3>
+                  {e.when ? (
+                    <p className="text-sm text-muted-foreground">{e.when}</p>
+                  ) : null}
+                </div>
+                <p className="text-sm text-maroon-900/80">
+                  {e.subtitle}
+                  <span className="sr-only"> ({e.kind})</span>
+                </p>
+              </li>
+            ))}
+          </ol>
+          {entries.length > shown.length ? (
+            <p className="mt-4 text-xs text-muted-foreground">
+              Showing {shown.length} of {entries.length}.
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <Hint>
+          {isOwner ? (
+            <>
+              Add your programs, degrees, placements and jobs.{" "}
+              <Link
+                href="/profile/edit#education"
+                className="font-medium text-maroon-700 underline underline-offset-2"
+              >
+                Add education
+              </Link>{" "}
+              or{" "}
+              <Link
+                href="/profile/edit#experience"
+                className="font-medium text-maroon-700 underline underline-offset-2"
+              >
+                add experience
+              </Link>
+              .
+            </>
+          ) : (
+            `${firstName} hasn't added education or experience yet.`
+          )}
+        </Hint>
+      )}
+    </Card>
+  );
+}
+
+/** Connection, follower and following counts, with a few connections shown by name. */
+export function NetworkCard({
+  counts,
+  connections,
+  isOwner,
+}: {
+  counts: NetworkCounts;
+  connections: NetworkMember[];
+  isOwner: boolean;
+}) {
+  const stats = [
+    { label: counts.connections === 1 ? "connection" : "connections", value: counts.connections },
+    { label: counts.followers === 1 ? "follower" : "followers", value: counts.followers },
+    { label: "following", value: counts.following },
+  ];
+
+  return (
+    <Card id="profile-network" title="Connections" icon={UsersRound}>
+      <dl className="grid grid-cols-3 gap-2 text-center">
+        {stats.map((s) => (
+          <div key={s.label} className="rounded-xl bg-sand/70 px-2 py-3">
+            <dd className="text-xl font-bold text-maroon-900">{s.value}</dd>
+            <dt className="text-xs text-muted-foreground">{s.label}</dt>
+          </div>
+        ))}
+      </dl>
+
+      {connections.length ? (
+        <ul aria-label="Some connections" className="mt-4 flex flex-wrap gap-2">
+          {connections.map((m) => (
+            <li key={m.id}>
+              <Link
+                href={`/profile/${m.username}`}
+                title={[m.first_name, m.last_name].join(" ")}
+                aria-label={[m.first_name, m.last_name].join(" ")}
+                className="block rounded-full focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                <MemberAvatar
+                  name={m.first_name}
+                  src={avatarUrl(m.avatar_path)}
+                  className="size-10 border-2 border-surface"
+                />
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : null}
-      {interests.length ? (
-        <Card title="Interests">
-          <Chips items={interests} tone="outline" />
-        </Card>
+
+      {isOwner ? (
+        <Link
+          href="/network/connections"
+          className="mt-4 inline-block text-sm font-medium text-maroon-700 underline-offset-4 hover:underline"
+        >
+          View all
+        </Link>
       ) : null}
-      <p className="text-xs text-muted-foreground">
-        Skills and interests are self-reported and have not been verified.
-      </p>
-    </div>
+    </Card>
   );
 }
 
@@ -425,9 +457,10 @@ export function CompletenessCard({
   return (
     <section
       aria-labelledby="completeness"
-      className="rounded-2xl border border-maroon-200 bg-maroon-50 p-5 sm:p-6"
+      className="rounded-3xl border border-maroon-200 bg-maroon-50 p-5 sm:p-6"
     >
-      <h2 id="completeness" className="text-lg font-bold text-maroon-900">
+      <h2 id="completeness" className="flex items-center gap-2 text-lg font-bold text-maroon-900">
+        <BookOpen className="size-4.5 text-maroon-600" aria-hidden="true" />
         Complete your profile
       </h2>
       <p className="text-sm text-maroon-900/75">

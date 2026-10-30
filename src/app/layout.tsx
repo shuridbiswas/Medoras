@@ -61,6 +61,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
+        {/* Shown only when set, so previews on the development database are clearly not real. */}
+        {process.env.NEXT_PUBLIC_DEMO_DATA_BANNER === "true" ? (
+          <div
+            role="status"
+            className="bg-maroon-900 px-4 py-1.5 text-center text-xs font-medium text-white"
+          >
+            DONNÉES DE DÉMONSTRATION · DEMO DATA: environnement de développement, personnes fictives
+            / development environment, fictional people
+          </div>
+        ) : null}
         {children}
       </body>
     </html>

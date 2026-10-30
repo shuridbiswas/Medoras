@@ -1,57 +1,71 @@
-import Link from "next/link";
-import { Home, Search, User } from "lucide-react";
+import { Suspense } from "react";
+import { Plus, Search } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { UserMenu } from "@/components/layout/user-menu";
+import { LinkButton } from "@/components/ui/link-button";
+import {
+  BellLink,
+  NotificationBell,
+} from "@/features/notifications/components/notification-bell";
+import { RequestCountBadge } from "@/features/network/components/request-count";
 import { avatarUrl } from "@/lib/storage-url";
 import type { ProfileRow } from "@/lib/supabase/database.types";
-import { cn } from "@/lib/utils";
 
 export type HeaderMember = Pick<
   ProfileRow,
-  "username" | "first_name" | "last_name" | "avatar_path"
+  "id" | "username" | "first_name" | "last_name" | "avatar_path"
 >;
 
-const navLink =
-  "hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-maroon-900/80 transition-colors hover:bg-maroon-50 hover:text-maroon-900 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none md:inline-flex";
-
 /**
- * Header for signed-in pages: logo, member search, Home, Profile and the account menu.
- * On phones the same destinations move to a bottom tab bar. Pass the signed-in member.
+ * Chrome for signed-in pages: a fixed sidebar on large screens (logo, navigation, New Post), a
+ * top bar (search, notifications, account menu), and a bottom tab bar on phones. Wrap the page
+ * in <AppFrame> so the content clears the sidebar.
  */
-export function AppHeader({
-  member,
-  wide,
-}: {
-  member: HeaderMember;
-  /** Match the three-column home layout width. */
-  wide?: boolean;
-}) {
+export function AppHeader({ member }: { member: HeaderMember }) {
   const name = [member.first_name, member.last_name].filter(Boolean).join(" ");
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur-sm">
-        <div
-          className={cn(
-            "mx-auto flex h-16 items-center gap-3 px-4 sm:px-6",
-            wide ? "max-w-7xl" : "max-w-5xl",
-          )}
-        >
+      <aside
+        aria-label="Primary"
+        className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface lg:flex"
+      >
+        <div className="flex h-16 shrink-0 items-center px-5">
           <Logo />
+        </div>
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          <SidebarNav
+            username={member.username}
+            badges={{
+              network: (
+                <Suspense fallback={null}>
+                  <RequestCountBadge userId={member.id} />
+                </Suspense>
+              ),
+            }}
+          />
+        </div>
+        <div className="shrink-0 p-4">
+          <LinkButton href="/#composer" className="h-11 w-full rounded-xl text-[0.95rem]">
+            <Plus className="size-4.5" aria-hidden="true" />
+            New Post
+          </LinkButton>
+        </div>
+      </aside>
 
-          <form
-            role="search"
-            action="/search"
-            method="get"
-            className="mx-2 hidden max-w-md flex-1 md:block"
-          >
+      <header className="sticky top-0 z-20 border-b border-border bg-surface">
+        <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+          <Logo className="lg:hidden" />
+
+          <form role="search" action="/network" method="get" className="mx-auto hidden max-w-xl flex-1 md:block lg:mx-0">
             <label htmlFor="header-search" className="sr-only">
               Search members
             </label>
             <div className="relative">
               <Search
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden="true"
               />
               <input
@@ -60,29 +74,21 @@ export function AppHeader({
                 type="search"
                 maxLength={60}
                 placeholder="Search members by name or username"
-                className="h-10 w-full rounded-full border border-input bg-sand/50 pr-4 pl-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-surface focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="h-11 w-full rounded-full border border-transparent bg-sand pr-4 pl-10 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-surface focus-visible:ring-3 focus-visible:ring-ring/50"
               />
             </div>
           </form>
 
-          <nav aria-label="Main" className="ml-auto flex items-center gap-1">
-            <Link href="/" className={navLink}>
-              <Home className="size-4" aria-hidden="true" />
-              Home
-            </Link>
-            <Link
-              href={member.username ? `/profile/${member.username}` : "/profile/edit"}
-              className={navLink}
-            >
-              <User className="size-4" aria-hidden="true" />
-              Profile
-            </Link>
+          <div className="ml-auto flex items-center gap-1">
+            <Suspense fallback={<BellLink />}>
+              <NotificationBell userId={member.id} />
+            </Suspense>
             <UserMenu
               name={name}
               username={member.username}
               avatarSrc={avatarUrl(member.avatar_path)}
             />
-          </nav>
+          </div>
         </div>
       </header>
       <MobileTabBar username={member.username} />

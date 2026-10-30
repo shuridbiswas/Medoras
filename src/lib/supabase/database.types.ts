@@ -103,8 +103,64 @@ export type PostCommentRow = {
 export type NotificationPreferencesRow = {
   user_id: string;
   notify_activity: boolean;
+  inapp_connections: boolean;
+  inapp_comments: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type ConnectionStatus = "pending" | "accepted";
+
+export type ConnectionRow = {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: ConnectionStatus;
+  created_at: string;
+  accepted_at: string | null;
+};
+
+export type FollowRow = {
+  follower_id: string;
+  followee_id: string;
+  created_at: string;
+};
+
+export type MemberBlockRow = {
+  blocker_id: string;
+  blocked_id: string;
+  created_at: string;
+};
+
+/** Add a value here and to saved_items_type_valid when a new kind of content can be bookmarked. */
+export type SavedItemType = "post";
+
+export type SavedItemRow = {
+  id: string;
+  user_id: string;
+  item_type: SavedItemType;
+  item_id: string;
+  created_at: string;
+};
+
+export type NotificationType =
+  | "connection_request"
+  | "connection_accepted"
+  | "post_comment"
+  | "comment_reply"
+  | "mention"
+  | "community_event"
+  | "mentorship_event";
+
+export type NotificationRow = {
+  id: string;
+  recipient_id: string;
+  actor_id: string | null;
+  type: NotificationType;
+  entity_type: "post" | "connection" | "community" | "mentorship" | null;
+  entity_id: string | null;
+  created_at: string;
+  read_at: string | null;
 };
 
 type Updatable<Row, Omit_ extends keyof Row> = Partial<Omit<Row, Omit_>>;
@@ -163,14 +219,56 @@ export type Database = {
       };
       notification_preferences: {
         Row: NotificationPreferencesRow;
-        Insert: Pick<NotificationPreferencesRow, "user_id" | "notify_activity">;
-        Update: Partial<Pick<NotificationPreferencesRow, "notify_activity">>;
+        Insert: Partial<
+          Pick<
+            NotificationPreferencesRow,
+            "notify_activity" | "inapp_connections" | "inapp_comments"
+          >
+        > &
+          Pick<NotificationPreferencesRow, "user_id">;
+        Update: Partial<
+          Pick<
+            NotificationPreferencesRow,
+            "notify_activity" | "inapp_connections" | "inapp_comments"
+          >
+        >;
         Relationships: [];
       };
       post_comments: {
         Row: PostCommentRow;
         Insert: Pick<PostCommentRow, "post_id" | "author_id" | "body">;
         Update: never;
+        Relationships: [];
+      };
+      connections: {
+        Row: ConnectionRow;
+        Insert: Pick<ConnectionRow, "requester_id" | "addressee_id">;
+        Update: Partial<Pick<ConnectionRow, "status">>;
+        Relationships: [];
+      };
+      follows: {
+        Row: FollowRow;
+        Insert: Pick<FollowRow, "follower_id" | "followee_id">;
+        Update: never;
+        Relationships: [];
+      };
+      member_blocks: {
+        Row: MemberBlockRow;
+        Insert: Pick<MemberBlockRow, "blocker_id" | "blocked_id">;
+        Update: never;
+        Relationships: [];
+      };
+      saved_items: {
+        Row: SavedItemRow;
+        Insert: Pick<SavedItemRow, "user_id" | "item_type" | "item_id">;
+        Update: never;
+        Relationships: [];
+      };
+      // Rows are created by database triggers, never by clients.
+      notifications: {
+        Row: NotificationRow;
+        Insert: never;
+        Update: Partial<Pick<NotificationRow, "read_at">>;
         Relationships: [];
       };
     };

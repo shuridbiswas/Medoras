@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { requireMember } from "@/lib/auth/session";
 import { reportError } from "@/lib/monitoring/report";
+import { saveNotificationPreferences } from "@/features/notifications/preferences";
 
 export type PreferencesState = {
   status: "idle" | "success" | "error";
@@ -21,13 +21,9 @@ export async function updateEmailPreferences(
   const { user } = await requireMember();
   const emailActivity = formData.get("emailActivity") === "on";
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("notification_preferences")
-    .upsert(
-      { user_id: user.id, notify_activity: emailActivity },
-      { onConflict: "user_id" },
-    );
+  const { error } = await saveNotificationPreferences(user.id, {
+    notify_activity: emailActivity,
+  });
 
   if (error) {
     reportError("notification_preferences.upsert", error);

@@ -4,7 +4,7 @@
 
 A professional and social network for the healthcare and social services community. See [CLAUDE.md](CLAUDE.md) for the product vision, architecture and roadmap.
 
-**Status:** Phase 1 (welcome page), Phase 2 (authentication and onboarding) and Phase 3 (professional profiles) and Phase 4 (member home and community feed) are implemented. Phases 2 to 4 were verified with automated tests, a database security test and a production build. It was exercised against a real Supabase development project (see [What is verified](#what-is-verified)). Netlify deployment, Resend, Sentry, Upstash, ProductBridge and Pinecone are integrated in code but need your account credentials before they can be tested live.
+**Status:** Phase 1 (welcome page), Phase 2 (authentication and onboarding) and Phase 3 (professional profiles) Phase 4 (member home and community feed) and Phase 4b (network, saved posts, notifications) are implemented. Phases 2 to 4 were verified with automated tests, a database security test and a production build. It was exercised against a real Supabase development project (see [What is verified](#what-is-verified)). Netlify deployment, Resend, Sentry, Upstash, ProductBridge and Pinecone are integrated in code but need your account credentials before they can be tested live.
 
 ## Requirements
 
@@ -69,14 +69,25 @@ Signed in, onboarding unfinished: any private route -> /onboarding
 - Mentorship preferences, skills and interests are **self-reported**; Medyra does not verify credentials and shows no verification badges.
 - Storage buckets are public-by-URL (unguessable per-upload file names); uploads and deletes are limited to the member's own folder.
 
+## Network, saved posts and notifications (Phase 4b)
+
+Migration `20261101000001_network.sql` adds `connections`, `follows`, `member_blocks`, `saved_items` and `notifications` (all with row level security) and two in-app notification preferences. Apply it like the others.
+
+- **Layout.** Every signed-in page has a fixed sidebar on large screens (Home, Network, Communities, Mentorship, Saved, Profile; Careers and Settings below a divider; New Post), a top bar (search, notification bell with unread count, account menu) and a bottom tab bar on phones. Communities, Mentorship and Careers are marked "Soon".
+- **`/network`** is the member directory: search by name, member type (students, professionals, researchers), field, mentorship interest, institution, country and city or region. Results are paginated (12 per page). Every card says "Unverified" because credentials are not verified yet. `/network/requests` lists requests you received and sent; `/network/connections` lists your connections with counts.
+- **Connections** are mutual: send, accept, decline, withdraw and remove. One row per pair (a duplicate or crossed request is refused), no self requests, nothing between blocked members. **Following** is separate and one-way. Counts are computed from the rows and shown on profiles; a profile also lists a member's connections.
+- **Blocking** (profile page, listed in Settings) ends any connection or follow in both directions and stops new ones. It is private: the blocked member is not told. There is still no reporting.
+- **`/saved`** lists posts you bookmarked (bookmark button on every post). `saved_items` uses `item_type` + `item_id`, so questions, research and jobs can be added later by extending one constraint. **`/post/[id]`** opens a single post (the target of saved items and notifications). The home feed has Latest and Following views.
+- **`/notifications`** (connection requests, accepted requests, comments, replies) with read/unread state, "mark all as read", dismiss, and in-app preferences in Settings. Notifications are written only by database triggers and never contain post or comment text. Mentions, community and mentorship events are in the schema but nothing creates them yet.
+
 ## Home feed (Phase 4)
 
 - `/` is the member home (the default page; visitors who are not signed in are redirected to `/welcome`, and the old `/home` address redirects to `/`). It shows: greeting, post composer, category filters (Latest plus seven categories), a newest-first feed, and side rails. On phones the navigation moves to a bottom tab bar with a one-tap Post shortcut and a More menu.
 - Members can post text in one of seven categories (General Discussion, Academic Life, Career Journey, Professional Advice, Research and Knowledge, Personal Achievement, Questions), edit or delete their own posts, like and unlike, and comment (and delete their own comments). Authors link to their real profiles, and each profile's Activity tab lists that member's posts.
 - Counts come from the database rows. The feed loads 15 posts at a time ("Load more posts").
-- `/search` finds members by name or username (also by field, or "open to mentoring", which is self-reported). It does not search posts, jobs or topics.
-- The right rail shows only real data: newest members, fields to explore, categories with posts in the last 7 days, members who say they can mentor, and a list of planned features marked "not available yet". `/communities`, `/mentorship`, `/careers` and `/saved` are informational pages for features that are not built.
-- Safety: the composer and feed remind members not to share identifiable patient information. The [community guidelines](/community-guidelines) say posts are member views, not verified medical advice, and that **identity verification and automated moderation are not active** and **reporting and blocking are not built yet**.
+- Member search lives in the Network directory (`/network`); the old `/search` address redirects there. It does not search posts, jobs or topics.
+- The right rail shows only real data: newest members, fields to explore, categories with posts in the last 7 days, members who say they can mentor, and a list of planned features marked "not available yet". `/communities`, `/mentorship` and `/careers` are informational pages for features that are not built.
+- Safety: the composer and feed remind members not to share identifiable patient information. The [community guidelines](/community-guidelines) say posts are member views, not verified medical advice, and that **identity verification and automated moderation are not active** and **there is no reporting** (blocking exists, see above).
 - Spam guard: at most 20 posts and 60 comments per member per hour (database trigger).
 - **Development test data (optional):** `npm run seed:dev` fills the dev project with about 30 fictional members, 150 posts, comments, likes and images, and `npm run seed:clean` removes it. Development only, locked to one project id. See [TESTING.md](TESTING.md#0b-fill-the-dev-project-with-fictional-test-data-optional).
 
@@ -112,7 +123,7 @@ Every service except Supabase is optional and quietly turns off when its variabl
 ## Routes
 
 Public: `/welcome`, `/login`, `/signup`, `/forgot-password`, `/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`, `/auth/callback` (email links).
-Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/` (home), `/search`, `/profile/[username]`, `/profile/edit`, `/settings`, plus informational pages `/communities`, `/mentorship`, `/careers`, `/saved`.
+Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/` (home), `/network`, `/network/requests`, `/network/connections`, `/saved`, `/notifications`, `/post/[id]`, `/profile/[username]`, `/profile/edit`, `/settings`, `/feedback`, plus informational pages `/communities`, `/mentorship`, `/careers`. `/search` redirects to `/network`.
 
 ## What is verified
 

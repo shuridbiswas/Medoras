@@ -16,6 +16,7 @@ export type RateLimitPolicy =
   | "post"
   | "comment"
   | "like"
+  | "network"
   | "search"
   | "api"
   | "email";
@@ -29,6 +30,7 @@ export const RATE_LIMIT_POLICIES: Record<
   post: { limit: 10, window: "10 m", message: "You're posting quickly. Please wait a few minutes." },
   comment: { limit: 20, window: "10 m", message: "You're commenting quickly. Please wait a few minutes." },
   like: { limit: 120, window: "1 m", message: "Too many reactions. Please slow down." },
+  network: { limit: 40, window: "10 m", message: "You're doing that quickly. Please wait a few minutes." },
   search: { limit: 30, window: "1 m", message: "Too many searches. Please wait a moment." },
   api: { limit: 120, window: "1 m", message: "Too many requests. Please wait a moment." },
   email: { limit: 5, window: "1 h", message: "Too many emails requested. Please try again later." },

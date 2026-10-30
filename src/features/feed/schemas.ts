@@ -43,6 +43,7 @@ export const feedRequestSchema = z.object({
   cursor: z.string().regex(CURSOR_PATTERN).optional(),
   category: categorySchema.optional(),
   authorId: z.uuid().optional(),
+  scope: z.literal("following").optional(),
 });
 
 export type FeedRequest = z.infer<typeof feedRequestSchema>;

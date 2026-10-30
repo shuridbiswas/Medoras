@@ -66,7 +66,19 @@ describe("proxy route protection", () => {
   });
 
   it("protects the search page and the not-yet-built module pages", async () => {
-    for (const path of ["/search", "/communities", "/mentorship", "/careers", "/saved", "/feedback"]) {
+    for (const path of [
+      "/search",
+      "/network",
+      "/network/requests",
+      "/network/connections",
+      "/notifications",
+      "/post/3d8f6f1e-6c1b-4a3b-9c52-1f0e2a7d9b11",
+      "/communities",
+      "/mentorship",
+      "/careers",
+      "/saved",
+      "/feedback",
+    ]) {
       expect(await run(path)).toBe(`/login?next=${encodeURIComponent(path)}`);
     }
     expect(await run("/search?q=amina")).toBe("/login?next=%2Fsearch");
@@ -103,7 +115,19 @@ describe("proxy route protection", () => {
     expect(await run("/profile/amina_r")).toBeNull();
     expect(await run("/profile/edit")).toBeNull();
     expect(await run("/settings")).toBeNull();
-    for (const path of ["/search", "/communities", "/mentorship", "/careers", "/saved", "/feedback"]) {
+    for (const path of [
+      "/search",
+      "/network",
+      "/network/requests",
+      "/network/connections",
+      "/notifications",
+      "/post/3d8f6f1e-6c1b-4a3b-9c52-1f0e2a7d9b11",
+      "/communities",
+      "/mentorship",
+      "/careers",
+      "/saved",
+      "/feedback",
+    ]) {
       expect(await run(path)).toBeNull();
     }
   });
@@ -115,6 +139,9 @@ describe("proxy route protection", () => {
         "/profile/:path*",
         "/settings/:path*",
         "/search/:path*",
+        "/network/:path*",
+        "/notifications/:path*",
+        "/post/:path*",
         "/communities/:path*",
         "/mentorship/:path*",
         "/careers/:path*",

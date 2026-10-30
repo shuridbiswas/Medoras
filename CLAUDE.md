@@ -34,7 +34,7 @@ src/
   app/                 Routes only: layouts, pages, metadata, SEO files
   components/
     ui/                shadcn primitives (do not hand-edit casually)
-    layout/            Header, footer, mobile nav, page shell, section primitives
+    layout/            Signed-in chrome (app-header = sidebar + top bar, app-frame, app-page, sidebar-nav, mobile-tab-bar), public header/footer, pagination, empty state
     brand/             Logo and wordmark
   features/<name>/     Feature-oriented code (landing now; auth, profiles, mentorship, etc. later)
   lib/
@@ -58,7 +58,7 @@ Conventions:
 - Never invent credentials. Secrets only via `.env.local` (see `.env.example`); never commit real values.
 - Before finishing work: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
-## Current scope: Phases 1 to 4 (done)
+## Current scope: Phases 1 to 4b (done)
 
 Phase 1: public welcome page at `/welcome` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
 
@@ -73,7 +73,7 @@ Auth architecture (see README for setup and verification status):
 - Database: `supabase/migrations/`. `profiles` holds only member-visible fields; private answers live in `onboarding_preferences`; email never leaves `auth.users`. Option lists in `src/features/onboarding/options.ts` must match the SQL CHECK constraints. `supabase/tests/rls.test.ts` runs the migrations in PGlite; update it when policies change.
 - Keep the test mocks in `src/test/mocks.ts` in sync when changing Supabase calls. Untested against a live project until the README setup is done.
 
-Phase 3: professional profiles. Routes `/profile/[username]` (tabs: Overview, Education, Experience, Skills & interests, Activity placeholder), `/profile/edit` (owner only), `/settings` (account, change password, privacy summary). The home page (`/`) and every signed-in page use `AppHeader`.
+Phase 3: professional profiles. Routes `/profile/[username]` (tabs: Overview, Education, Experience, Skills & interests, Activity placeholder), `/profile/edit` (owner only), `/settings` (account, change password, privacy summary). The home page (`/`) and every signed-in page render `AppHeader` (fixed sidebar, top bar, bell) inside `AppFrame` (or `AppPage`, which adds Suspense).
 
 Profile architecture:
 
@@ -99,7 +99,7 @@ Feed architecture:
 - **Pagination** is keyset (`created_at desc, id desc`) with an opaque cursor `"<created_at>|<id>"`, validated by `CURSOR_PATTERN` before it is put in a PostgREST filter. The server renders page one; `FeedList` (client) loads older pages through `loadMorePosts`. `FeedSection` re-keys the list whenever page one changes so extra pages never go stale.
 - Forms that can fail (composer, post edit) use **controlled** fields because React 19 resets uncontrolled forms after every submit, which would discard a member's text on error.
 - DB abuse guards: 20 posts and 60 comments per author per rolling hour (trigger `private.enforce_feed_rate_limit`). These are spam limits, not moderation.
-- Safety copy lives in `SafetyNotice` and `/community-guidelines`: no identifiable patient information, member posts are not medical advice, and verification and automated moderation are NOT active. Keep these statements true and update them when that changes. Reporting and blocking are not built.
+- Safety copy lives in `SafetyNotice` and `/community-guidelines`: no identifiable patient information, member posts are not medical advice, and verification and automated moderation are NOT active. Keep these statements true and update them when that changes. Reporting is not built; blocking exists (profile page, Settings).
 - Right-rail data is real or empty: no fabricated members or engagement. Development test data comes only from `scripts/seed/` (`npm run seed:dev|seed:clean|seed:verify`): fictional members created through the Auth API, locked to the project in `SEED_ALLOWED_PROJECT_REF`, never run against production, passwords only in git-ignored `scripts/.seed-output/accounts.json`. Change `scripts/seed/plan.ts` / `content.ts` and keep `validatePlan` in sync with the database constraints.
 - Tests: `supabase/tests/feed.test.ts` (policies in PGlite), `src/features/feed/{actions,queries,feed}.test.*`, `components/feed-components.test.tsx`, `src/components/layout/layout.test.tsx`.
 
@@ -107,7 +107,20 @@ Development environment: the repo is wired to a Supabase development project (`m
 
 The product was renamed from Medoras to Medyra. The wordmark, copy, cookie (`medyra-session-only`) and package name use Medyra; `medoras` stays a reserved username so nobody can impersonate the old name.
 
-Out of scope until later phases: connections, communities, mentorship matching, forums, messaging, jobs, reporting/blocking/moderation tooling, saved posts, post media, AI features, per-field privacy settings, username changes.
+Phase 4b: professional network, saved posts, notifications (migration `20261101000001`). Routes `/network` (directory), `/network/requests`, `/network/connections`, `/saved`, `/notifications`, `/post/[id]`; `/search` redirects to `/network`. The profile and home pages were redesigned (see `src/features/profile/components/{profile-header,sections}.tsx`, `src/features/home/components/{hero-banner,right-sidebar}.tsx`).
+
+Network architecture:
+
+- Code lives in `src/features/{network,saved,notifications}/` (`schemas`, `queries`, `actions`, `components`). Every action starts with `requireMember()`, takes the acting member only from that session and filters by it (`requester_id`, `addressee_id`, `follower_id`, `recipient_id`...); RLS repeats the rules.
+- **Connections:** one row per pair in either direction (unique index on `least/greatest`), `status` pending or accepted. Accept is the only update (addressee only); decline, withdraw and remove are deletes. Pending rows are visible only to the two people; accepted ones to members (counts, lists). **Follows** are separate and one-way. Counts come from rows.
+- **Blocks** are private to the blocker. Policies call `private.has_block_between()` (security definer, answers only for pairs that include the caller); the `private` schema is otherwise not executable by `authenticated` (`revoke execute on all functions in schema private`: do the same after adding functions there). Blocking deletes connections, follows and related notifications by trigger. Actions never say a block is the reason something failed. Directory results hide members the viewer blocked; the reverse direction is enforced on writes only.
+- **Notifications** are inserted only by triggers (no insert grant), carry type, actor and entity ids and **never text**, skip self and blocked pairs, and honour `notification_preferences.inapp_connections|inapp_comments`. UI sentences come from `notifications/format.ts`. "Reply" = a comment on a post you already commented on (there is no threading). Mentions and community/mentorship events exist in the schema only.
+- **Saved items:** `saved_items(item_type, item_id)`, private, one per member and item; extend `saved_items_type_valid` and the insert policy for new types. Deleting a post removes its saves and notifications (trigger).
+- **Verification:** nobody is verified; member cards and profiles show "Unverified" (`components/verification-chip.tsx`). Do not add badges before a real process exists.
+- **Column grants vs upsert:** owner columns are not updatable, and a PostgREST `upsert` writes them, so it is denied. Use `saveNotificationPreferences` (update, then insert) for owner-keyed rows such as `notification_preferences`.
+- Tests: `supabase/tests/network.test.ts` (PGlite policies and triggers), `src/features/{network,saved,notifications}/*.test.*`, `src/features/network/components/network-components.test.tsx`. The dev project was also checked live with two accounts.
+
+Out of scope until later phases: communities, mentorship matching, forums, messaging, jobs, reporting and moderation tooling, post media, AI features, per-field privacy settings, username changes, organization profiles (follows are member-only), mentions.
 
 ## Infrastructure (Netlify, Sentry, Upstash, Resend, ProductBridge, Pinecone)
 
@@ -129,7 +142,7 @@ Read ARCHITECTURE.md for decisions and risks. Conventions:
 1. **Phase 2 (done):** Supabase auth, onboarding, profile basics, RLS from day one.
 2. **Phase 3 (done):** Professional profiles.
 3. **Phase 4 (done):** Member home page and community feed (posts, likes, comments, categories, search).
-4. **Phase 4b:** Connections, communities, reporting and blocking, saved posts.
+4. **Phase 4b (connections, follows, blocking, saved posts, notifications: done):** still to do: communities, reporting and moderation tooling.
 5. **Phase 5:** Mentorship matching, forums (anonymous option), verification badges.
 6. **Phase 6:** Careers and employer profiles, articles/research, stories.
 7. **Phase 7:** Nearby communities and events, mental-health and peer-support space with human + AI-assisted moderation, reporting/blocking/muting.

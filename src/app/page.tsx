@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { avatarUrl, getUser, requireMember } from "@/lib/auth/session";
 import { categorySchema } from "@/features/feed/schemas";
-import { FeedNav } from "@/features/feed/components/feed-nav";
+import { FeedNav, type FeedScope } from "@/features/feed/components/feed-nav";
 import { FeedSection } from "@/features/feed/components/feed-section";
 import { FeedSkeleton } from "@/features/feed/components/feed-skeleton";
 import { PostComposer } from "@/features/feed/components/post-composer";
 import { SafetyNotice } from "@/features/feed/components/safety-notice";
 import { categoryLabel } from "@/features/feed/options";
-import { Greeting } from "@/features/home/components/greeting";
-import { LeftSidebar } from "@/features/home/components/left-sidebar";
+import { HeroBanner } from "@/features/home/components/hero-banner";
 import {
   RightSidebar,
   RightSidebarSkeleton,
@@ -22,15 +22,20 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-type Props = { searchParams: Promise<{ category?: string | string[] }> };
+type Props = {
+  searchParams: Promise<{
+    category?: string | string[];
+    feed?: string | string[];
+  }>;
+};
 
 export default function HomePage({ searchParams }: Props) {
   return (
-    <div className="min-h-dvh bg-sand/60 pb-20 md:pb-0">
+    <AppFrame>
       <Suspense fallback={<HomeFallback />}>
         <HomeContent searchParams={searchParams} />
       </Suspense>
-    </div>
+    </AppFrame>
   );
 }
 
@@ -43,6 +48,8 @@ function HomeFallback() {
   );
 }
 
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
 async function HomeContent({ searchParams }: Props) {
   // The default page: members see their home feed, everyone else the public welcome page.
   // (proxy.ts redirects first; this is the server-side backstop.)
@@ -50,57 +57,63 @@ async function HomeContent({ searchParams }: Props) {
   // Signed in, verified, and onboarding complete (otherwise sent to /login or /onboarding).
   const { user, profile } = await requireMember();
   const params = await searchParams;
-  const rawCategory = Array.isArray(params.category)
-    ? params.category[0]
-    : params.category;
-  // An unknown ?category= falls back to the full feed instead of erroring.
-  const parsed = categorySchema.safeParse(rawCategory);
+  // An unknown ?category= or ?feed= falls back to the full feed instead of erroring.
+  const parsed = categorySchema.safeParse(first(params.category));
   const category = parsed.success ? parsed.data : undefined;
+  const scope: FeedScope | undefined =
+    first(params.feed) === "following" ? "following" : undefined;
+
+  const view = scope ? "following" : "latest";
+  const retryParams = new URLSearchParams();
+  if (scope) retryParams.set("feed", scope);
+  if (category) retryParams.set("category", category);
+  const retryHref = retryParams.size > 0 ? `/?${retryParams}` : "/";
 
   return (
     <>
-      <AppHeader member={profile} wide />
+      <AppHeader member={profile} />
       <main
         id="main"
-        className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_19rem]"
+        className="mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6 xl:grid-cols-[minmax(0,1fr)_20rem]"
       >
-        <div className="hidden lg:block">
-          <div className="sticky top-22">
-            <LeftSidebar profile={profile} current="home" />
-          </div>
-        </div>
-
         <div className="min-w-0 space-y-5">
-          <div>
-            <Greeting firstName={profile.first_name} />
-            <p className="mt-1 text-sm text-muted-foreground">
-              Posts from Medyra members, newest first. {" "}
-              <span className="whitespace-nowrap">Share something, or join a conversation.</span>
-            </p>
-          </div>
+          <HeroBanner firstName={profile.first_name} />
 
           <PostComposer
             name={profile.first_name}
             avatarSrc={avatarUrl(profile.avatar_path)}
           />
 
-          <FeedNav active={category} />
+          <FeedNav active={category} scope={scope} />
 
           <section
-            aria-label={category ? `${categoryLabel(category)} posts` : "Latest posts"}
+            aria-label={
+              category
+                ? `${categoryLabel(category)} posts`
+                : scope
+                  ? "Posts from members you follow"
+                  : "Latest posts"
+            }
           >
-            <Suspense key={category ?? "all"} fallback={<FeedSkeleton />}>
+            <Suspense key={`${view}:${category ?? "all"}`} fallback={<FeedSkeleton />}>
               <FeedSection
                 viewerId={user.id}
                 category={category}
-                retryHref={category ? `/?category=${category}` : "/"}
+                scope={scope}
+                retryHref={retryHref}
                 emptyTitle={
-                  category ? "No posts in this category yet" : "No posts yet"
+                  scope
+                    ? "Nothing from the people you follow"
+                    : category
+                      ? "No posts in this category yet"
+                      : "No posts yet"
                 }
                 emptyDescription={
-                  category
-                    ? "Be the first to start a conversation here."
-                    : "Nothing has been shared yet. Start the first conversation using the box above."
+                  scope
+                    ? "Follow members from the Network page and their posts will appear here."
+                    : category
+                      ? "Be the first to start a conversation here."
+                      : "Nothing has been shared yet. Start the first conversation using the box above."
                 }
               />
             </Suspense>
