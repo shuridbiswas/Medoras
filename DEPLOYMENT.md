@@ -6,7 +6,7 @@ Netlify's official Next.js support (the OpenNext adapter, `@netlify/plugin-nextj
 
 ## 1. Connect GitHub to Netlify
 
-1. Netlify dashboard > **Add new project** > **Import an existing project** > **GitHub**. Authorize Netlify for the `shuridbiswas/Medoras` repository only.
+1. Netlify dashboard > **Add new project** > **Import an existing project** > **GitHub**. Authorize Netlify for the `shuridbiswas/Medyra` repository only.
 2. Production branch: `main`. (The `dev` branch and pull requests become previews.)
 3. Build settings (Netlify reads them from `netlify.toml`, so just confirm):
    - Build command: `npm run build`

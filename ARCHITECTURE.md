@@ -99,7 +99,7 @@ The full, commented list is in `.env.example`. Summary:
 
 ## 7. Deployment architecture
 
-- Git-based: GitHub repo `shuridbiswas/Medoras`. Production branch `main`; every pull request and the `dev` branch get Netlify Deploy Previews.
+- Git-based: GitHub repo `shuridbiswas/Medyra`. Production branch `main`; every pull request and the `dev` branch get Netlify Deploy Previews.
 - Build: `npm run build` on Node 22. Netlify applies its Next.js adapter automatically. No static export.
 - **Environment separation:** production uses its own Supabase project (create `medyra-prod`; do not reuse `medyra-dev`), its own Upstash database, Sentry environment `production`, and email confirmation ON. Previews may use the **development** Supabase project only, never production data.
 - Security headers (`next.config.ts`): nosniff, frame deny, referrer policy, permissions policy, HSTS. No CSP yet (see risks).
