@@ -25,6 +25,9 @@ export type ProfileRow = {
   career_stage: string | null;
   country: string | null;
   onboarding_completed: boolean;
+  /** "members": every member sees details. "connections": only accepted connections do. */
+  profile_visibility: "members" | "connections";
+  directory_listed: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -163,6 +166,101 @@ export type NotificationRow = {
   read_at: string | null;
 };
 
+export type ReportTargetType = "post" | "comment" | "profile";
+export type ReportStatus = "open" | "reviewing" | "actioned" | "dismissed";
+
+export type ReportRow = {
+  id: string;
+  reporter_id: string | null;
+  target_type: ReportTargetType;
+  target_id: string;
+  target_member_id: string | null;
+  reason: string;
+  details: string | null;
+  excerpt: string | null;
+  status: ReportStatus;
+  created_at: string;
+  reviewed_by: string | null;
+  resolved_at: string | null;
+};
+
+export type MemberStatusRow = {
+  user_id: string;
+  status: "active" | "suspended";
+  reason: string | null;
+  updated_at: string;
+};
+
+export type StaffRoleRow = { user_id: string; role: "admin"; granted_at: string };
+
+export type MemberMuteRow = { muter_id: string; muted_id: string; created_at: string };
+
+export type MemberNoticeRow = {
+  id: string;
+  member_id: string;
+  kind: "warning" | "content_removed" | "suspended" | "restored" | "appeal_decision";
+  message: string;
+  created_at: string;
+};
+
+export type AppealRow = {
+  id: string;
+  notice_id: string;
+  member_id: string;
+  message: string;
+  status: "open" | "upheld" | "overturned";
+  decided_by: string | null;
+  decision_note: string | null;
+  created_at: string;
+  decided_at: string | null;
+};
+
+export type ModerationActionRow = {
+  id: string;
+  report_id: string | null;
+  moderator_id: string | null;
+  member_id: string | null;
+  action: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type AuditLogRow = {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+export type RecoveryCodeRow = {
+  user_id: string;
+  created_at: string;
+  used_at: string | null;
+};
+
+export type ConsentRecordRow = {
+  id: string;
+  user_id: string;
+  kind: "terms" | "privacy" | "community_guidelines";
+  version: string;
+  accepted_at: string;
+};
+
+export type DataRequestRow = {
+  id: string;
+  user_id: string | null;
+  kind: "export" | "deletion";
+  status: "requested" | "cancelled" | "completed";
+  requested_at: string;
+  scheduled_for: string;
+  completed_at: string | null;
+};
+
+export type RetentionPolicyRow = { key: string; days: number; description: string };
+
 type Updatable<Row, Omit_ extends keyof Row> = Partial<Omit<Row, Omit_>>;
 
 export type Database = {
@@ -264,6 +362,43 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      member_status: { Row: MemberStatusRow; Insert: never; Update: never; Relationships: [] };
+      staff_roles: { Row: StaffRoleRow; Insert: never; Update: never; Relationships: [] };
+      member_mutes: {
+        Row: MemberMuteRow;
+        Insert: Pick<MemberMuteRow, "muter_id" | "muted_id">;
+        Update: never;
+        Relationships: [];
+      };
+      reports: { Row: ReportRow; Insert: never; Update: never; Relationships: [] };
+      member_notices: { Row: MemberNoticeRow; Insert: never; Update: never; Relationships: [] };
+      appeals: {
+        Row: AppealRow;
+        Insert: Pick<AppealRow, "notice_id" | "member_id" | "message">;
+        Update: never;
+        Relationships: [];
+      };
+      moderation_actions: { Row: ModerationActionRow; Insert: never; Update: never; Relationships: [] };
+      audit_logs: { Row: AuditLogRow; Insert: never; Update: never; Relationships: [] };
+      mfa_recovery_codes: {
+        Row: RecoveryCodeRow;
+        Insert: { user_id: string; code_hash: string };
+        Update: never;
+        Relationships: [];
+      };
+      consent_records: {
+        Row: ConsentRecordRow;
+        Insert: Pick<ConsentRecordRow, "user_id" | "kind" | "version">;
+        Update: never;
+        Relationships: [];
+      };
+      data_requests: {
+        Row: DataRequestRow;
+        Insert: { user_id: string; kind: "deletion" };
+        Update: { status: "cancelled" };
+        Relationships: [];
+      };
+      retention_policies: { Row: RetentionPolicyRow; Insert: never; Update: never; Relationships: [] };
       // Rows are created by database triggers, never by clients.
       notifications: {
         Row: NotificationRow;
@@ -273,7 +408,29 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      submit_report: {
+        Args: { p_target_type: ReportTargetType; p_target_id: string; p_reason: string; p_details?: string | null };
+        Returns: string;
+      };
+      claim_report: { Args: { p_report: string }; Returns: undefined };
+      moderate_report: {
+        Args: { p_report: string; p_decision: string; p_note?: string | null; p_member_message?: string | null };
+        Returns: undefined;
+      };
+      set_member_status: {
+        Args: { p_member: string; p_status: string; p_reason?: string | null; p_message?: string | null };
+        Returns: undefined;
+      };
+      decide_appeal: {
+        Args: { p_appeal: string; p_decision: string; p_note?: string | null };
+        Returns: undefined;
+      };
+      redeem_mfa_recovery_code: { Args: { p_code: string }; Returns: boolean };
+      record_data_export: { Args: Record<string, never>; Returns: string };
+      admin_execute_deletion: { Args: { p_request: string }; Returns: undefined };
+      set_retention_days: { Args: { p_key: string; p_days: number }; Returns: undefined };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

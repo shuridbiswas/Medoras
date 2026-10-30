@@ -12,6 +12,7 @@ const ALLOWED_PREFIXES = [
   "/notifications",
   "/saved",
   "/post",
+  "/admin",
 ] as const;
 
 export function safeNextPath(

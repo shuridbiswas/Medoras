@@ -71,12 +71,28 @@ Connect. Learn. Grow. Belong.`,
   };
 }
 
-export type SecurityEvent = "password_changed";
+export type SecurityEvent =
+  | "password_changed"
+  | "mfa_added"
+  | "mfa_removed"
+  | "mfa_recovery_used";
 
 const SECURITY_COPY: Record<SecurityEvent, { subject: string; line: string }> = {
   password_changed: {
     subject: "Your Medyra password was changed",
     line: "The password for your Medyra account was just changed, and your other devices were signed out.",
+  },
+  mfa_added: {
+    subject: "An authenticator app was added to your Medyra account",
+    line: "An authenticator app was just added to your Medyra account as a second sign-in step.",
+  },
+  mfa_removed: {
+    subject: "An authenticator app was removed from your Medyra account",
+    line: "An authenticator app was just removed from your Medyra account.",
+  },
+  mfa_recovery_used: {
+    subject: "A recovery code was used on your Medyra account",
+    line: "A recovery code was just used to reset the authenticator on your Medyra account.",
   },
 };
 
