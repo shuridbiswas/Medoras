@@ -6,6 +6,8 @@ import { requireMember } from "@/lib/auth/session";
 import { NotificationList } from "@/features/notifications/components/notification-list";
 import { NOTIFICATION_PAGE_SIZE } from "@/features/notifications/format";
 import { listNotifications } from "@/features/notifications/queries";
+import { ModerationNotices } from "@/features/safety/components/notices";
+import { listMyNotices } from "@/features/safety/queries";
 
 export const metadata: Metadata = {
   title: "Notifications",
@@ -28,7 +30,7 @@ async function NotificationsContent({ searchParams }: Props) {
   const parsed = Number.parseInt((Array.isArray(raw) ? raw[0] : raw) ?? "1", 10);
   const page = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 500) : 1;
 
-  const result = await listNotifications(user.id, page);
+  const [result, notices] = await Promise.all([listNotifications(user.id, page), listMyNotices(user.id, 10)]);
   const key = `${page}:${result.items.map((n) => `${n.id}:${n.read_at ?? ""}`).join(",")}`;
 
   return (
@@ -41,6 +43,8 @@ async function NotificationsContent({ searchParams }: Props) {
             Connection requests, replies and comments. Only you can see these.
           </p>
         </div>
+
+        <ModerationNotices notices={notices} />
 
         {result.failed ? (
           <p role="alert" className="text-sm text-destructive">

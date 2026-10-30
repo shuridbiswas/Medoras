@@ -14,6 +14,8 @@ const actions = vi.hoisted(() => ({
   loadMorePosts: vi.fn(),
 }));
 vi.mock("@/features/feed/actions", () => actions);
+const safety = vi.hoisted(() => ({ submitReport: vi.fn(), setMute: vi.fn(), submitAppeal: vi.fn() }));
+vi.mock("@/features/safety/actions", () => safety);
 const saved = vi.hoisted(() => ({ setSaved: vi.fn() }));
 vi.mock("@/features/saved/actions", () => saved);
 

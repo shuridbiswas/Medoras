@@ -36,6 +36,8 @@ const row = (n: number, authorId = OTHER) => ({
   comments: [{ count: 1 }],
 });
 
+const postsOp = () => db.ops.find((o) => o.table === "posts")!;
+
 beforeEach(() => {
   db = makeDb();
 });
@@ -58,7 +60,7 @@ describe("getFeedPage", () => {
       op.table === "posts" ? { data: [row(1), row(2), row(3)] } : { data: [] },
     );
     const page = await getFeedPage(ME, {}, 2);
-    expect(db.ops[0].limit).toBe(3);
+    expect(postsOp().limit).toBe(3);
     expect(page.posts).toHaveLength(2);
     expect(page.nextCursor).toBe(encodeCursor(row(2)));
   });
@@ -71,7 +73,7 @@ describe("getFeedPage", () => {
   it("continues strictly after the cursor, breaking timestamp ties by id", async () => {
     const cursor = `2026-10-28T12:00:00.123456+00:00|${row(2).id}`;
     await getFeedPage(ME, { cursor }, 15);
-    const or = db.ops[0].filters.find(([k]) => k === "or")?.[1] as string;
+    const or = postsOp().filters.find(([k]) => k === "or")?.[1] as string;
     expect(or).toBe(
       `created_at.lt."2026-10-28T12:00:00.123456+00:00",and(created_at.eq."2026-10-28T12:00:00.123456+00:00",id.lt.${row(2).id})`,
     );
@@ -79,15 +81,32 @@ describe("getFeedPage", () => {
 
   it("filters by category and by author when asked", async () => {
     await getFeedPage(ME, { category: "questions", authorId: OTHER });
-    expect(db.ops[0].filters).toEqual([
+    expect(postsOp().filters).toEqual([
       ["category", "questions"],
       ["author_id", OTHER],
     ]);
+    // Looking at one member's page never hides that member.
+    expect(db.ops.map((o) => o.table)).not.toContain("member_blocks");
   });
 
   it("does not look up likes or saves when there are no posts", async () => {
     await getFeedPage(ME, {});
-    expect(db.ops.map((o) => o.table)).toEqual(["posts"]);
+    expect(db.ops.map((o) => o.table)).toEqual(["member_blocks", "member_mutes", "posts"]);
+  });
+
+  it("keeps members the viewer blocked or muted out of the main feed", async () => {
+    db = makeDb((op) => {
+      if (op.table === "member_blocks") return { data: [{ blocked_id: OTHER }] };
+      if (op.table === "member_mutes") return { data: [{ muted_id: "99999999-9999-4999-8999-999999999999" }, { muted_id: OTHER }] };
+      return { data: [] };
+    });
+    await getFeedPage(ME, {});
+    expect(postsOp().filters).toContainEqual(["author_id not", `(${OTHER},99999999-9999-4999-8999-999999999999)`]);
+  });
+
+  it("leaves the feed unfiltered when nobody is hidden", async () => {
+    await getFeedPage(ME, {});
+    expect(postsOp().filters.some(([k]) => k === "author_id not")).toBe(false);
   });
 
   it("marks posts the viewer saved, from the viewer's own saves only", async () => {
@@ -153,6 +172,22 @@ describe("getComments", () => {
       ["Mine", true],
       ["Theirs", false],
     ]);
-    expect(db.ops[0].filters).toEqual([["post_id", "p"]]);
+    expect(db.ops.find((o) => o.table === "post_comments")!.filters).toEqual([["post_id", "p"]]);
+  });
+
+  it("leaves out comments by members the viewer blocked or muted", async () => {
+    db = makeDb((op) => {
+      if (op.table === "member_mutes") return { data: [{ muted_id: OTHER }] };
+      if (op.table === "post_comments")
+        return {
+          data: [
+            { id: "c1", post_id: "p", body: "Mine", created_at: "2026-10-30T10:00:00Z", author: author(ME) },
+            { id: "c2", post_id: "p", body: "Muted", created_at: "2026-10-30T11:00:00Z", author: author(OTHER, "Sam") },
+          ],
+        };
+      return { data: [] };
+    });
+    const { comments } = await getComments(ME, "p");
+    expect(comments.map((c) => c.body)).toEqual(["Mine"]);
   });
 });

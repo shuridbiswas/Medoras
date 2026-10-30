@@ -14,6 +14,7 @@ import {
 } from "@/features/feed/actions";
 import { COMMENT_MAX_LENGTH } from "@/features/feed/options";
 import type { FeedComment } from "@/features/feed/types";
+import { ReportButton } from "@/features/safety/components/report-button";
 
 const fullName = (a: FeedComment["author"]) =>
   [a.first_name, a.last_name].filter(Boolean).join(" ");
@@ -147,6 +148,7 @@ export function Comments({
                 <p className="mt-0.5 text-sm leading-relaxed break-words whitespace-pre-wrap text-maroon-900/90">
                   {c.body}
                 </p>
+                {!c.isOwn ? <ReportButton targetType="comment" targetId={c.id} className="mt-1" /> : null}
               </div>
             </li>
           ))}

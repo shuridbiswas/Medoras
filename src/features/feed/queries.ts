@@ -5,6 +5,7 @@ import {
   FEED_PAGE_SIZE,
 } from "@/features/feed/options";
 import type { FeedRequest } from "@/features/feed/schemas";
+import { getHiddenAuthorIds } from "@/features/safety/queries";
 import type {
   FeedComment,
   FeedPage,
@@ -133,8 +134,12 @@ export async function getFeedPage(
     if (followedIds.length === 0) return { posts: [], nextCursor: null };
   }
 
+  // Members the viewer blocked or muted stay out of the main feed (a member's own page still shows).
+  const hidden = authorId ? [] : await getHiddenAuthorIds(viewerId);
+
   let query = supabase.from("posts").select(POST_SELECT);
   if (followedIds) query = query.in("author_id", followedIds);
+  if (hidden.length > 0) query = query.not("author_id", "in", `(${hidden.join(",")})`);
   if (category) query = query.eq("category", category);
   if (authorId) query = query.eq("author_id", authorId);
   if (cursor) {
@@ -184,9 +189,10 @@ export async function getComments(
     .overrideTypes<CommentQueryRow[], { merge: false }>();
 
   if (error || !data) return { comments: [], failed: true };
+  const hidden = new Set(await getHiddenAuthorIds(viewerId));
   return {
     comments: data
-      .filter((c) => c.author !== null)
+      .filter((c) => c.author !== null && !hidden.has(c.author.id))
       .map((c) => ({
         id: c.id,
         post_id: c.post_id,

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { EmailPreferencesForm } from "@/features/settings/components/email-preferences-form";
 import { InAppPreferencesForm } from "@/features/notifications/components/in-app-preferences-form";
 import { BlockedMembers } from "@/features/network/components/blocked-members";
+import { MutedMembers } from "@/features/safety/components/muted-members";
 import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
@@ -223,6 +224,14 @@ async function SettingsContent() {
           </p>
           <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
             <BlockedMembers viewerId={user.id} />
+          </Suspense>
+          <h3 className="mt-6 text-base font-semibold text-maroon-900">Muted members</h3>
+          <p className="mb-3 mt-1 text-sm text-muted-foreground">
+            Muting hides a member&apos;s posts and comments from you and silences their notifications. They can
+            still connect with you, and they aren&apos;t told.
+          </p>
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
+            <MutedMembers viewerId={user.id} />
           </Suspense>
         </section>
 

@@ -15,6 +15,9 @@ import {
 } from "@/features/profile/components/sections";
 import { ProfileActivity } from "@/features/feed/components/profile-activity";
 import { BlockButton } from "@/features/network/components/block-button";
+import { MuteButton } from "@/features/safety/components/mute-button";
+import { ReportButton } from "@/features/safety/components/report-button";
+import { isMuted } from "@/features/safety/queries";
 import { ProfileConnections } from "@/features/network/components/profile-connections";
 import { RelationshipActions } from "@/features/network/components/relationship-actions";
 import {
@@ -66,11 +69,12 @@ async function ProfileContent({ params }: Props) {
   const { education, experience, skills } = data;
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ");
 
-  const [counts, preview, relationship, blockedIds] = await Promise.all([
+  const [counts, preview, relationship, blockedIds, muted] = await Promise.all([
     getNetworkCounts(profile.id),
     listConnections(profile.id, 1, 8),
     isOwner ? Promise.resolve(null) : getRelationship(user.id, profile.id),
     isOwner ? Promise.resolve<string[]>([]) : getBlockedIds(user.id),
+    isOwner ? Promise.resolve(false) : isMuted(user.id, profile.id),
   ]);
   const blockedByMe = blockedIds.includes(profile.id);
 
@@ -90,7 +94,11 @@ async function ProfileContent({ params }: Props) {
             className="justify-center"
           />
         )}
-        <BlockButton memberId={profile.id} name={name} blocked={blockedByMe} />
+        <div className="flex flex-wrap items-start justify-center gap-x-5 gap-y-2">
+          <BlockButton memberId={profile.id} name={name} blocked={blockedByMe} />
+          <MuteButton memberId={profile.id} name={name} muted={muted} />
+          <ReportButton targetType="profile" targetId={profile.id} label="Report this member" />
+        </div>
       </div>
     );
 

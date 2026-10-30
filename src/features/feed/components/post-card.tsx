@@ -17,6 +17,7 @@ import { avatarUrl } from "@/lib/storage-url";
 import { deletePost, setLike, updatePost } from "@/features/feed/actions";
 import { setSaved } from "@/features/saved/actions";
 import { Comments } from "@/features/feed/components/comments";
+import { ReportButton } from "@/features/safety/components/report-button";
 import {
   categoryLabel,
   POST_CATEGORIES,
@@ -338,6 +339,8 @@ export function PostCard({
           </button>
         </div>
       </div>
+
+      {!post.isOwn ? <ReportButton targetType="post" targetId={post.id} className="mt-1" /> : null}
 
       <div id={`${id}-comments`}>
         {showComments ? (
