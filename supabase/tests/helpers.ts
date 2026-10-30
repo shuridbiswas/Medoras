@@ -6,7 +6,7 @@ import { PGlite } from "@electric-sql/pglite";
 
 const migrationsDir = path.resolve(import.meta.dirname, "../migrations");
 
-const supabaseStubs = `
+export const supabaseStubs = `
   create role anon nologin;
   create role authenticated nologin;
   create schema auth;
@@ -23,6 +23,9 @@ const supabaseStubs = `
   );
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+  $$;
+  create function auth.jwt() returns jsonb language sql stable as $$
+    select coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb)
   $$;
   grant usage on schema auth to anon, authenticated;
   revoke all on auth.users from anon, authenticated;
@@ -81,9 +84,11 @@ export async function createHarness() {
   }
   await db.query("insert into public.staff_roles (user_id, role) values ($1, 'admin')", [ids.admin]);
 
-  async function asUser(id: string | null) {
+  /** Act as a member. `aal` is the assurance level of the session ("aal1" until a second factor passes). */
+  async function asUser(id: string | null, aal: "aal1" | "aal2" = "aal1") {
     await db.exec("reset role");
     await db.query("select set_config('request.jwt.claim.sub', $1, false)", [id ?? ""]);
+    await db.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ aal })]);
     await db.exec(id ? "set role authenticated" : "set role anon");
   }
   const asOwner = () => db.exec("reset role");
@@ -125,6 +130,14 @@ export async function createHarness() {
       alter table public.audit_logs disable trigger audit_logs_append_only;
       delete from public.audit_logs;
       alter table public.audit_logs enable trigger audit_logs_append_only;
+      delete from public.mfa_recovery_codes;
+      delete from public.mfa_recovery_attempts;
+      delete from public.consent_records;
+      delete from public.data_requests;
+      delete from auth.mfa_factors;
+      update public.profiles set profile_visibility = 'members', directory_listed = true;
+      delete from public.profile_education;
+      delete from public.profile_skills;
       delete from public.appeals;
       delete from public.moderation_actions;
       delete from public.member_notices;
