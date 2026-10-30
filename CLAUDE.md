@@ -58,7 +58,7 @@ Conventions:
 - Never invent credentials. Secrets only via `.env.local` (see `.env.example`); never commit real values.
 - Before finishing work: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
-## Current scope: Phases 1 to 4b (done)
+## Current scope: Phases 1 to 4b and 4A (done)
 
 Phase 1: public welcome page at `/welcome` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
 
@@ -120,7 +120,18 @@ Network architecture:
 - **Column grants vs upsert:** owner columns are not updatable, and a PostgREST `upsert` writes them, so it is denied. Use `saveNotificationPreferences` (update, then insert) for owner-keyed rows such as `notification_preferences`.
 - Tests: `supabase/tests/network.test.ts` (PGlite policies and triggers), `src/features/{network,saved,notifications}/*.test.*`, `src/features/network/components/network-components.test.tsx`. The dev project was also checked live with two accounts.
 
-Out of scope until later phases: communities, mentorship matching, forums, messaging, jobs, reporting and moderation tooling, post media, AI features, per-field privacy settings, username changes, organization profiles (follows are member-only), mentions.
+Phase 4A: production readiness, security and trust (migrations `20261102000001` and `20261102000002`; report in `PRODUCTION_READINESS.md`). Read it for what is verified and the remaining blockers.
+
+Phase 4A architecture:
+
+- **MFA:** `src/lib/auth/mfa.ts` (policy, pure) and the gates in `src/lib/auth/session.ts`. `requireUser/requireMember({ mfa })`: `"enforce"` (default: challenge enrolled members, send others to setup), `"allow-enrollment"` (the setup page), `"skip"` (the challenge page). `MFA_ENFORCEMENT` = required (default) | challenge | off; tests run with `off` (`vitest.setup.ts`). Reading the assurance level fails closed. `requireAdmin()` gives anyone else a 404, requires a second factor always, and checks `staff_roles`. `requireRecentAuth/isRecentAuth`: a sign-in within 10 minutes, else `/reauth`. Suspended members are redirected to `/suspended` (`requireMember({ allowSuspended })` for that page and appeals).
+- **Security features:** `src/features/security/`. Recovery codes are random, shown once, stored as SHA-256 hashes (`mfa_recovery_codes`, hash column not selectable), redeemed by `redeem_mfa_recovery_code` (rate limited, deletes the member's `auth.mfa_factors`). DB policy `private.mfa_ok()` refuses recovery-code writes from an aal1 session once a factor exists.
+- **Safety and moderation:** `src/features/{safety,admin}/`. Reports are created only by `submit_report()`; staff actions only by `claim_report/moderate_report/set_member_status/decide_appeal` (security definer, check `private.is_admin()`, write `audit_logs` in the same transaction; `audit_logs` is append-only). `member_notices` (shown to the member) are separate from `moderation_actions` (internal). `private.is_member()` now excludes suspended members, so every policy using it blocks them. Blocking and suspension also gate posting, liking and commenting. Never claim automated or AI moderation.
+- **Privacy:** `src/features/privacy/`, `src/lib/legal.ts` (`POLICY_VERSION` keeps "-draft" until a lawyer approves). `profiles.profile_visibility/directory_listed`; education, experience and skills visibility is enforced in the DB (`private.can_see_profile_details`), bio fields by `restrictToCard` in the app. Export is a POST-only route; deletion is request + 30 days + administrator (`admin_execute_deletion`); `retention_policies` and `private.run_retention_purge()` (not scheduled). The privacy/terms/guidelines pages carry `DraftNotice`; do not remove it, or assert compliance, without counsel's approval.
+- **Guards:** `src/lib/api-protection.test.ts` lists every route handler and its protection (add new routes there); admin pages must call `requireAdmin()`; every non-auth `actions.ts` must call a session gate. After adding functions to the `private` schema, re-run `revoke execute on all functions in schema private` and re-grant only the policy helpers.
+- **Tests:** `supabase/tests/{safety,security-privacy}.test.ts` (shared `helpers.ts` stubs Supabase's auth schema, including `auth.mfa_factors` and `auth.jwt()`), `src/lib/auth/{mfa,gates}.test.ts`, `src/features/{security,safety,admin,privacy}/*.test.*`.
+
+Out of scope until later phases: communities, mentorship matching, forums, messaging, jobs, automated or AI moderation, post media, AI features, per-field privacy settings, username changes, organization profiles (follows are member-only), mentions.
 
 ## Infrastructure (Netlify, Sentry, Upstash, Resend, ProductBridge, Pinecone)
 

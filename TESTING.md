@@ -215,3 +215,32 @@ npm run build
 ```
 
 The RLS tests apply the real migrations to an in-memory Postgres and check cross-user access. They do not need Supabase credentials.
+
+## 14. Security, safety and privacy (Phase 4A)
+
+Needs the two Phase 4A migrations applied, TOTP enabled in the project, an authenticator app on your phone, and two accounts (A, B). Set `MFA_ENFORCEMENT=required` (or unset) to see enforcement; `off` skips it.
+
+**Two-step sign-in**
+1. Sign in as A. You land on `/settings/security?setup=1` and every other page sends you back there. Sign out still works.
+2. Choose "Set up authenticator app", scan the QR code, enter the 6-digit code. Save the recovery codes shown once.
+3. Sign out and in. After the password you are asked for a code; a wrong code is refused.
+4. In Account security try "Remove": you are asked to confirm your password (if your sign-in is older than 10 minutes). Removing the only authenticator is refused while MFA is required.
+5. Recovery: sign in, on the code screen choose "Lost your phone?", enter one recovery code. Your authenticator is removed and you are sent to set up a new one. The same code does not work twice. Five wrong codes lock further attempts for an hour.
+6. "Sign out other devices" in a second browser window ends that window's session.
+
+**Reporting, muting, blocking**
+1. As B, press Report on one of A's posts, a comment, and A's profile. Pick a reason; send. Reporting the same item again is accepted silently; reporting your own content is refused.
+2. As A, Mute B on their profile: B's posts and comments disappear from A's feed and comment threads; B gets no hint. Unmute in Settings.
+3. As A, Block B. B can no longer like or comment on A's posts, connect, or follow (B sees only "You can't do that with this member").
+
+**Admin** (first make an administrator, see `DEPLOYMENT.md`, who must have an authenticator)
+1. Open `/admin` as a non-admin: 404. As the administrator: overview, audit log, retention, deletion requests.
+2. `/admin/reports`: Start review on B's report, then Warn, Remove content (post or comment) or Suspend with a message. As the reported member the message appears under Notifications; the internal note never does. A suspended member is held at `/suspended` and can appeal there.
+3. Decide the appeal (uphold or overturn). Overturning restores the account. Every step appears in the audit log, which has no edit or delete.
+4. `/admin/users`: search a member, suspend or restore them. You cannot suspend yourself or another administrator.
+
+**Privacy**
+1. `/settings/privacy`: set "Only my connections" on A. As B (not connected) A's profile shows only the identity card; connect, and the details return. Unlist A from the directory: A disappears from search and suggestions.
+2. Download my data: a JSON file with your own data only. Deleting requests need a recent sign-in.
+3. Request account deletion: the page shows the date (30 days) and lets you cancel. An administrator carries it out after that date.
+4. Read `/privacy`, `/terms`, `/community-guidelines`: each starts with the "draft, not legal advice" notice.

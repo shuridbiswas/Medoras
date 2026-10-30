@@ -4,7 +4,7 @@
 
 A professional and social network for the healthcare and social services community. See [CLAUDE.md](CLAUDE.md) for the product vision, architecture and roadmap.
 
-**Status:** Phase 1 (welcome page), Phase 2 (authentication and onboarding) and Phase 3 (professional profiles) Phase 4 (member home and community feed) and Phase 4b (network, saved posts, notifications) are implemented. Phases 2 to 4 were verified with automated tests, a database security test and a production build. It was exercised against a real Supabase development project (see [What is verified](#what-is-verified)). Netlify deployment, Resend, Sentry, Upstash, ProductBridge and Pinecone are integrated in code but need your account credentials before they can be tested live.
+**Status:** Phase 1 (welcome page), Phase 2 (authentication and onboarding) and Phase 3 (professional profiles) Phase 4 (member home and community feed) Phase 4b (network, saved posts, notifications) and Phase 4A (production readiness: MFA, reporting and moderation, privacy workflows, legal drafts) are implemented. See `PRODUCTION_READINESS.md` for what is verified and the remaining blockers. Phases 2 to 4 were verified with automated tests, a database security test and a production build. It was exercised against a real Supabase development project (see [What is verified](#what-is-verified)). Netlify deployment, Resend, Sentry, Upstash, ProductBridge and Pinecone are integrated in code but need your account credentials before they can be tested live.
 
 ## Requirements
 
@@ -68,6 +68,17 @@ Signed in, onboarding unfinished: any private route -> /onboarding
 - Only signed-in, onboarded members can view profiles, and only the owner can change one. Email addresses are never part of a profile. Location is optional and only a general place the member types (for example "Montreal, QC") is shown, with their country.
 - Mentorship preferences, skills and interests are **self-reported**; Medyra does not verify credentials and shows no verification badges.
 - Storage buckets are public-by-URL (unguessable per-upload file names); uploads and deletes are limited to the member's own folder.
+
+## Security, safety and privacy (Phase 4A)
+
+Migrations `20261102000001_safety_and_moderation.sql` and `20261102000002_account_security_and_privacy.sql`. **Apply them before deploying** (see `DEPLOYMENT.md`).
+
+- **Two-step sign-in** with an authenticator app (Supabase Auth TOTP), recovery codes, password re-confirmation for sensitive changes and sign-out of other devices: `/settings/security`. `MFA_ENFORCEMENT` (default `required`) controls enforcement; members without an authenticator are sent to setup, never locked out. Enable TOTP in the Supabase dashboard first.
+- **Safety:** report a post, comment or profile; mute; block (blocks also stop liking and commenting); suspended members see only their notice and an appeal form (`/suspended`).
+- **Moderation** at `/admin`, `/admin/reports`, `/admin/users` (administrators only, always with a second factor; administrators are created in SQL). Decisions go through database functions that write an append-only audit log. **There is no automated or AI moderation.**
+- **Privacy** at `/settings/privacy`: profile visibility, directory listing, data download, account deletion (30-day cooling-off), consent records, retention, privacy contact (`PRIVACY_CONTACT_EMAIL`).
+- **Legal pages** (`/privacy`, `/terms`, `/community-guidelines`) are drafts marked for qualified legal review; they do not assert legal compliance.
+- Observability and uptime: `OBSERVABILITY.md`.
 
 ## Network, saved posts and notifications (Phase 4b)
 

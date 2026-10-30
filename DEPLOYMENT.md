@@ -99,3 +99,23 @@ See DNS_SETUP.md. In short: add the domain in **Domain management**, create the 
 | Images don't load | Check the Storage bucket exists in that Supabase project and `NEXT_PUBLIC_SUPABASE_URL` points to it |
 | Environment variable change has no effect | `NEXT_PUBLIC_*` values are baked at build time. Trigger a new deploy |
 | Preview shows production-looking data | Wrong Supabase project in the preview scope. Fix the scoping immediately |
+
+## Phase 4A: security, safety and privacy rollout
+
+Read `PRODUCTION_READINESS.md` first: it lists what was verified live and the exact remaining blockers.
+
+Order matters. Do not deploy the code before the migrations exist.
+
+1. **Revoke** any Supabase personal access token that was ever pasted into chat or a file. Create a new one scoped to the project, or use the SQL editor.
+2. **Apply the migrations** `20261102000001_safety_and_moderation.sql` and `20261102000002_account_security_and_privacy.sql` (in that order, after the earlier ones). Run the Supabase Security and Performance advisors afterwards.
+3. In the Supabase dashboard enable **Authentication > Multi-Factor > TOTP**. Without it, setup fails with a clear message and, if `MFA_ENFORCEMENT=required`, nobody can pass the setup page. Keep `MFA_ENFORCEMENT=challenge` as the emergency switch.
+4. Make the first administrator (after they have an account). Administrators are created only in SQL, never in the app:
+   ```sql
+   insert into public.staff_roles (user_id, role)
+   select id, 'admin' from auth.users where email = 'you@example.org';
+   ```
+   They then open `/admin` directly (there is deliberately no link), and must have set up an authenticator.
+5. In Netlify set `MFA_ENFORCEMENT` (see `.env.example`; unset means `required`) and, when a mailbox exists, `PRIVACY_CONTACT_EMAIL`. With `required`, every existing member is sent to authenticator setup on their next visit; they are never locked out of the setup page or of signing out.
+6. Deploy, then run the live checklist in `PRODUCTION_READINESS.md` section 2.
+
+Scheduled work that nothing runs yet (see `OBSERVABILITY.md`): `select private.run_retention_purge();` and carrying out due deletion requests from `/admin`.
