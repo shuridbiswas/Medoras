@@ -41,6 +41,51 @@ The URL, redirect, password-length and confirmation settings above are already a
 
 Useful URLs: `/signup`, `/login`, `/forgot-password`, `/onboarding`, `/home`, `/profile/edit`, `/profile/<username>`, `/settings`, `/search`.
 
+## 0b. Fill the dev project with fictional test data (optional)
+
+Instead of creating accounts by hand, a development-only tool creates about 30 fictional members with profiles, images, about 150 posts, 260 comments and 480 likes. It is in `scripts/seed/` and needs **Node 22.18+** (it runs the TypeScript directly).
+
+**One-time setup**
+
+1. In `.env.local` make sure `SEED_ALLOWED_PROJECT_REF=<your dev project id>` is set. The tool refuses to run against any other project, and refuses when `NODE_ENV=production`.
+2. Create a Supabase access token limited to the dev project (Account > Access Tokens). It is only used for backdated posts, comments and likes (members can't set `created_at`) and for cleanup. Pass it for the command only; never save it in a committed file:
+
+   ```bash
+   SUPABASE_ACCESS_TOKEN=<token> npm run seed:dev
+   ```
+
+   (PowerShell: `$env:SUPABASE_ACCESS_TOKEN="<token>"; npm run seed:dev`)
+3. Email confirmation must be OFF in the dev project (section 0).
+
+**Commands**
+
+| Command | What it does |
+| --- | --- |
+| `npm run seed:dev -- --dry-run` | Prints the plan (counts and members). Writes nothing and needs no token |
+| `npm run seed:dev` | Creates the data. Safe to rerun: existing seed accounts and rows are reused, never duplicated |
+| `npm run seed:verify` | Compares the database with the plan and checks permissions as two seeded members |
+| `npm run seed:clean -- --dry-run` | Shows what would be removed |
+| `npm run seed:clean` | Deletes only seed accounts (`seed+...@example.com`), their data and their images |
+
+**What you get**
+
+- 26 completed members across all 8 member types, 11 fields and 6 career stages, plus 4 accounts that never finished onboarding (they must stay invisible to others).
+- Edge cases: a very long name, accented and unicode names, an empty bio, a bio of exactly 1000 characters, no headline, no location, no avatar, members who never post.
+- About 70% of members have an avatar and 40% a cover (simple generated silhouettes, no real faces). Eight members are open to mentoring and ten are looking for a mentor.
+- Posts in all 7 categories spread over the last 30 days. `casey_ngu` has 46 posts to exercise pagination (15 per page), one post is exactly 3000 characters, several are multi-paragraph, some contain `<`, `>`, `&`, quotes and emoji to test escaping, some are marked "Edited", and questions say they are generic scenarios.
+- Some posts have no likes or comments, and no member likes a post twice. Nothing is faked beyond these real rows.
+
+**Logging in as a seeded member**
+
+Passwords are random and are written only to `scripts/.seed-output/accounts.json` (git-ignored; never printed or committed). Open it, pick an account, and sign in at `/login` with its email (`seed+<username>@example.com`) and password. Good ones to start with: `casey_ngu` (46 posts), `jose_nunez` (a mentor), `amina_r` (a student looking for a mentor).
+
+**Safety rules the tool follows**
+
+- Every identity, school and workplace is invented. Bios end with "(Fictional test profile)". No post or comment has clinical detail, patient information, contact details or links.
+- Accounts are created through the Auth API (never by inserting into `auth.users`), and profile data is written as each member, so row level security applies.
+- Re-running with the same code produces the same data (fixed random seed).
+- If a seeded post or comment looks wrong, change `scripts/seed/content.ts` and run `seed:clean` then `seed:dev`.
+
 ## 1. Create Test Account A
 
 1. Go to http://localhost:3000/signup.

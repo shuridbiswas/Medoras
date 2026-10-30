@@ -78,7 +78,7 @@ Signed in, onboarding unfinished: any private route -> /onboarding
 - The right rail shows only real data: newest members, fields to explore, categories with posts in the last 7 days, members who say they can mentor, and a list of planned features marked "not available yet". `/communities`, `/mentorship`, `/careers` and `/saved` are informational pages for features that are not built.
 - Safety: the composer and feed remind members not to share identifiable patient information. The [community guidelines](/community-guidelines) say posts are member views, not verified medical advice, and that **identity verification and automated moderation are not active** and **reporting and blocking are not built yet**.
 - Spam guard: at most 20 posts and 60 comments per member per hour (database trigger).
-- **Development seed (optional):** `supabase/dev-seed/posts.sql` adds four posts labelled "[Development sample]" under an existing onboarded member. For development projects only; it creates no people, likes or comments. Remove them with `delete from public.posts where body like '[Development sample]%';`.
+- **Development test data (optional):** `npm run seed:dev` fills the dev project with about 30 fictional members, 150 posts, comments, likes and images, and `npm run seed:clean` removes it. Development only, locked to one project id. See [TESTING.md](TESTING.md#0b-fill-the-dev-project-with-fictional-test-data-optional).
 
 ## Infrastructure and integrations
 

@@ -48,3 +48,6 @@ supabase/.branches/
 # Netlify, Sentry
 .netlify
 .sentryclirc
+
+# Dev seed output (contains generated passwords)
+scripts/.seed-output/

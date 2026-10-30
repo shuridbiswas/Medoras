@@ -9,7 +9,10 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:dev": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed/seed.ts",
+    "seed:clean": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed/clean.ts",
+    "seed:verify": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed/verify.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
