@@ -12,6 +12,10 @@ let supabase = makeSupabase();
 let configured = true;
 
 vi.mock("server-only", () => ({}));
+const sendToMember = vi.fn(async () => ({ status: "skipped" as const, reason: "not_configured" as const }));
+vi.mock("@/lib/email/send", () => ({
+  sendToMember: (...args: unknown[]) => (sendToMember as (...a: unknown[]) => unknown)(...args),
+}));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => redirectMock(url),
 }));
@@ -256,7 +260,11 @@ describe("password recovery", () => {
   });
 
   it("updates the password for a member with a recovery session, then signs out other devices", async () => {
-    getUser.mockResolvedValue({ id: "u1" });
+    getUser.mockResolvedValue({
+      id: "u1",
+      email: "amina@example.com",
+      user_metadata: { first_name: "Amina" },
+    });
     const to = await redirectOf(() =>
       actions.updatePassword(
         idle,
@@ -267,10 +275,30 @@ describe("password recovery", () => {
       ),
     );
     expect(to).toBe("/home");
+    // The member is told their password changed (security notices always send).
+    expect(sendToMember).toHaveBeenCalledTimes(1);
+    const [recipient, message, category] = sendToMember.mock.calls[0] as unknown as [
+      { id: string; email: string },
+      { subject: string },
+      string,
+    ];
+    expect(recipient).toMatchObject({ id: "u1", email: "amina@example.com" });
+    expect(message.subject).toMatch(/password was changed/i);
+    expect(category).toBe("security");
     expect(supabase.auth.updateUser).toHaveBeenCalledWith({
       password: "brand-new-pass1",
     });
     expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: "others" });
+  });
+
+  it("does not send a security notice when the password update fails", async () => {
+    getUser.mockResolvedValue({ id: "u1", email: "amina@example.com" });
+    supabase = makeSupabase({ updateUser: { code: "same_password", message: "same" } });
+    await actions.updatePassword(
+      idle,
+      makeFormData({ password: "brand-new-pass1", confirmPassword: "brand-new-pass1" }),
+    );
+    expect(sendToMember).not.toHaveBeenCalled();
   });
 
   it("refuses to update a password without a valid session (expired or forged link)", async () => {

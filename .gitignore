@@ -44,3 +44,7 @@ next-env.d.ts
 *.tsbuildinfo
 supabase/.temp/
 supabase/.branches/
+
+# Netlify, Sentry
+.netlify
+.sentryclirc

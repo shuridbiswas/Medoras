@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Eye, EyeOff, LogOut, Mail, ShieldCheck } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { EmailPreferencesForm } from "@/features/settings/components/email-preferences-form";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { LinkButton } from "@/components/ui/link-button";
@@ -51,6 +53,12 @@ const privateItems = [
 
 async function SettingsContent() {
   const { user, profile } = await requireMember();
+  const supabase = await createClient();
+  const { data: prefs } = await supabase
+    .from("notification_preferences")
+    .select("notify_activity")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   return (
     <>
@@ -130,6 +138,19 @@ async function SettingsContent() {
             </Link>
           </p>
           <ResetPasswordForm />
+        </section>
+
+        <section
+          aria-labelledby="notifications"
+          className="rounded-2xl border border-border bg-surface p-5 sm:p-7"
+        >
+          <h2 id="notifications" className="text-xl font-bold text-maroon-900">
+            Email notifications
+          </h2>
+          <p className="mb-5 mt-1 text-sm text-muted-foreground">
+            Choose which emails Medyra may send you.
+          </p>
+          <EmailPreferencesForm emailActivity={prefs?.notify_activity ?? true} />
         </section>
 
         <section

@@ -13,6 +13,7 @@ const PRIVATE_PREFIXES = [
   "/mentorship",
   "/careers",
   "/saved",
+  "/feedback",
 ];
 /** Pages only for signed-out visitors. */
 const GUEST_ONLY = ["/login", "/signup", "/forgot-password"];
@@ -63,6 +64,7 @@ export const config = {
     "/mentorship/:path*",
     "/careers/:path*",
     "/saved/:path*",
+    "/feedback/:path*",
     "/onboarding/:path*",
     "/reset-password/:path*",
     "/login",

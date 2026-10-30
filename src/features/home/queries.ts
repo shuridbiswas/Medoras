@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { ProfileRow } from "@/lib/supabase/database.types";
 import { POST_CATEGORIES } from "@/features/feed/options";
+import { cached } from "@/lib/cache";
 
 /**
  * Right-rail data. Everything here is real: other onboarded members, and counts from real
@@ -56,6 +57,14 @@ export async function getOpenMentors(
 /** Post counts per category over the last seven days, most active first. */
 export async function getActiveCategories(
   limit = 4,
+): Promise<{ value: string; label: string; count: number }[]> {
+  // Same numbers for every member (public aggregates, no personal data), so a 60 second shared
+  // cache is safe. Redis is optional: without it this simply queries the database.
+  return cached(`active-categories:${limit}`, 60, () => loadActiveCategories(limit));
+}
+
+async function loadActiveCategories(
+  limit: number,
 ): Promise<{ value: string; label: string; count: number }[]> {
   const supabase = await createClient();
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();

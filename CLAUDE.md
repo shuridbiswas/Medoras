@@ -107,6 +107,21 @@ The product was renamed from Medoras to Medyra. The wordmark, copy, cookie (`med
 
 Out of scope until later phases: connections, communities, mentorship matching, forums, messaging, jobs, reporting/blocking/moderation tooling, saved posts, post media, AI features, per-field privacy settings, username changes.
 
+## Infrastructure (Netlify, Sentry, Upstash, Resend, ProductBridge, Pinecone)
+
+Read ARCHITECTURE.md for decisions and risks. Conventions:
+
+- **Auth stays Supabase Auth.** Do not add Auth.js or a second session system without the documented migration plan and the owner's approval (ARCHITECTURE.md section 4).
+- **Every external service is optional and fail-soft.** Missing variables turn the feature off; a service outage must never block sign-up, onboarding, reading the feed, or saving a post. `src/lib/services.ts` + `GET /api/health` report presence (booleans only).
+- **Secrets:** server-only variables are never `NEXT_PUBLIC_`; never log or return them; `.env.example` is the one list of names. Never add the Supabase secret/service_role key.
+- **Rate limits** (`src/lib/rate-limit.ts`, Upstash, per verified member id, fail-open) back the database's hard hourly limits. Add a policy there and call `checkRateLimit` at the top of any new write action.
+- **Cache** (`src/lib/cache.ts`) is only for public, member-independent aggregates with a short TTL. Never cache per-member data, content or tokens.
+- **Errors:** report unexpected server failures with `reportError(operation, error)` (operation name and DB error code only, never member content). Sentry events pass through `scrubEvent`; Session Replay stays off.
+- **Email:** `sendToMember` (src/lib/email/send.ts) emails only the verified signed-in member. Auth emails belong to Supabase (via Resend SMTP); do not send them from app code.
+- **ProductBridge** gets no member data (links only). **Pinecone** embeds structured profile tags only, never free text; always re-check results against PostgreSQL RLS (`searchProfileIds`).
+- **Netlify:** `netlify.toml` + the official adapter; no static export. `NEXT_PUBLIC_APP_ENV` labels the deploy context. Previews use the dev Supabase project, never production.
+- Supabase client creation calls `connection()` so Cache Components never prerenders time-dependent auth work.
+
 ## Roadmap
 
 1. **Phase 2 (done):** Supabase auth, onboarding, profile basics, RLS from day one.

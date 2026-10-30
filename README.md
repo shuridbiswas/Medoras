@@ -4,7 +4,7 @@
 
 A professional and social network for the healthcare and social services community. See [CLAUDE.md](CLAUDE.md) for the product vision, architecture and roadmap.
 
-**Status:** Phase 1 (welcome page), Phase 2 (authentication and onboarding) and Phase 3 (professional profiles) and Phase 4 (member home and community feed) are implemented. Phases 2 to 4 were verified with automated tests, a database security test and a production build. It has **not** been tested end to end against a real Supabase project; see [What is verified](#what-is-verified).
+**Status:** Phase 1 (welcome page), Phase 2 (authentication and onboarding) and Phase 3 (professional profiles) and Phase 4 (member home and community feed) are implemented. Phases 2 to 4 were verified with automated tests, a database security test and a production build. It was exercised against a real Supabase development project (see [What is verified](#what-is-verified)). Netlify deployment, Resend, Sentry, Upstash, ProductBridge and Pinecone are integrated in code but need your account credentials before they can be tested live.
 
 ## Requirements
 
@@ -80,6 +80,24 @@ Signed in, onboarding unfinished: any private route -> /onboarding
 - Spam guard: at most 20 posts and 60 comments per member per hour (database trigger).
 - **Development seed (optional):** `supabase/dev-seed/posts.sql` adds four posts labelled "[Development sample]" under an existing onboarded member. For development projects only; it creates no people, likes or comments. Remove them with `delete from public.posts where body like '[Development sample]%';`.
 
+## Infrastructure and integrations
+
+Documents: [ARCHITECTURE.md](ARCHITECTURE.md) (decisions, data ownership, risks), [DEPLOYMENT.md](DEPLOYMENT.md) (Netlify), [DNS_SETUP.md](DNS_SETUP.md) (domain and Cloudflare), [EMAIL_SETUP.md](EMAIL_SETUP.md) (Resend, SPF/DKIM/DMARC), [TESTING.md](TESTING.md).
+
+| Service | Role | Status |
+| --- | --- | --- |
+| Supabase (Auth, PostgreSQL, Storage) | Identity, data, images | In use; tested on the dev project |
+| Netlify | Hosting (official Next.js adapter) | `netlify.toml` written; production build passes; **not yet deployed** |
+| Cloudflare, Netlify registrar | DNS and domain | Documented only |
+| Resend | Auth email (via Supabase SMTP) and app email (SDK) | Code tested with mocks; **needs your Resend key and verified domain** |
+| ProductBridge | Feedback, roadmap, changelog at `/feedback` | Implemented using documented direct URLs; **needs your organization id** |
+| Sentry | Error monitoring (scrubbed, no replay) | Implemented; **needs your DSN** |
+| Upstash Redis | Rate limiting and 60 s shared cache (fails open) | Implemented, tested with mocks; **needs credentials** |
+| Pinecone | Future semantic search | Foundation only, disabled, not wired into any feature |
+| Auth.js | Considered | **Not adopted**: Supabase Auth is kept (reasons in ARCHITECTURE.md) |
+
+Every service except Supabase is optional and quietly turns off when its variables are missing. `GET /api/health` shows which are configured (never values). Copy `.env.example` to `.env.local`; all variable names and where each belongs are documented there.
+
 ## Scripts
 
 | Command             | Purpose                                      |
@@ -98,7 +116,7 @@ Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/home`, `/s
 
 ## What is verified
 
-Automatically, by `npm test` (293 tests), `npm run lint`, `npm run typecheck` and `npm run build`:
+Automatically, by `npm test` (348 tests), `npm run lint`, `npm run typecheck` and `npm run build`:
 
 - Registration, existing-email handling, weak passwords, rate limiting, missing configuration
 - Login success, invalid credentials, unverified email, session-only option, safe redirects
@@ -116,4 +134,4 @@ Automatically, by `npm test` (293 tests), `npm run lint`, `npm run typecheck` an
 
 ## Deploying
 
-Vercel-compatible. Set the three env vars from `.env.example` in the project settings, set `NEXT_PUBLIC_SITE_URL` to the production URL, and add that URL's `/auth/callback` to Supabase's Redirect URLs.
+Deploy to Netlify by following [DEPLOYMENT.md](DEPLOYMENT.md). Do not attach a production domain until a preview deployment passes its checklist.

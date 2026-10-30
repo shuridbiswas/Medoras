@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireOnboardingPending } from "@/lib/auth/session";
 import { checkAvatar } from "@/features/onboarding/avatar";
+import { sendToMember } from "@/lib/email/send";
+import { welcomeEmail } from "@/lib/email/templates";
 import {
   onboardingSchema,
   STEP_OF_FIELD,
@@ -129,6 +131,13 @@ export async function completeOnboarding(
   if (avatarPath && profile?.avatar_path) {
     await supabase.storage.from("avatars").remove([profile.avatar_path]);
   }
+
+  // Best effort: a failed or unconfigured email never blocks onboarding (sendToMember never throws).
+  await sendToMember(
+    user,
+    welcomeEmail({ firstName: profile?.first_name ?? "", username: input.username }),
+    "transactional",
+  );
 
   redirect("/home");
 }

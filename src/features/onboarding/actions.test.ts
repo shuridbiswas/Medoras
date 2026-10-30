@@ -23,6 +23,10 @@ const supabase = {
 };
 
 vi.mock("server-only", () => ({}));
+const sendToMember = vi.fn(async () => ({ status: "skipped" as const, reason: "not_configured" as const }));
+vi.mock("@/lib/email/send", () => ({
+  sendToMember: (...args: unknown[]) => (sendToMember as (...a: unknown[]) => unknown)(...args),
+}));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => redirectMock(url),
 }));
@@ -34,8 +38,8 @@ vi.mock("@/lib/auth/session", () => ({
     if (pending === "signed-out") redirectMock("/login");
     if (pending === "completed") redirectMock("/home");
     return {
-      user: { id: "u1" },
-      profile: { avatar_path: null },
+      user: { id: "u1", email: "amina@example.com" },
+      profile: { avatar_path: null, first_name: "Amina" },
       preferences: null,
     };
   },
@@ -86,6 +90,26 @@ describe("completeOnboarding", () => {
       country: "CA",
       onboarding_completed: true,
     });
+  });
+
+  it("sends the welcome email to the member's own address after onboarding succeeds", async () => {
+    await redirectOf(() => completeOnboarding(idle, makeFormData(form)));
+    expect(sendToMember).toHaveBeenCalledTimes(1);
+    const [recipient, message, category] = sendToMember.mock.calls[0] as unknown as [
+      { id: string; email: string },
+      { subject: string; text: string },
+      string,
+    ];
+    expect(recipient).toMatchObject({ id: "u1", email: "amina@example.com" });
+    expect(message.subject).toBe("Welcome to Medyra");
+    expect(message.text).toContain("/profile/amina_r");
+    expect(category).toBe("transactional");
+  });
+
+  it("sends no welcome email when onboarding fails", async () => {
+    profileError = { code: "23505" };
+    await completeOnboarding(idle, makeFormData(form));
+    expect(sendToMember).not.toHaveBeenCalled();
   });
 
   it("never lets the client choose another member's id or skip validation", async () => {

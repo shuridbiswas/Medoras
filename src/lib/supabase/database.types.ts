@@ -100,6 +100,13 @@ export type PostCommentRow = {
   created_at: string;
 };
 
+export type NotificationPreferencesRow = {
+  user_id: string;
+  notify_activity: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 type Updatable<Row, Omit_ extends keyof Row> = Partial<Omit<Row, Omit_>>;
 
 export type Database = {
@@ -152,6 +159,12 @@ export type Database = {
         Row: PostLikeRow;
         Insert: Pick<PostLikeRow, "post_id" | "user_id">;
         Update: never;
+        Relationships: [];
+      };
+      notification_preferences: {
+        Row: NotificationPreferencesRow;
+        Insert: Pick<NotificationPreferencesRow, "user_id" | "notify_activity">;
+        Update: Partial<Pick<NotificationPreferencesRow, "notify_activity">>;
         Relationships: [];
       };
       post_comments: {

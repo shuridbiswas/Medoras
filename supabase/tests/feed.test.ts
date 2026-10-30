@@ -333,3 +333,41 @@ describe("abuse limits and ordering", () => {
     expect(plan.rows).toBeTruthy();
   });
 });
+
+describe("notification preferences (owner-only)", () => {
+  it("blocks anonymous visitors", async () => {
+    await asUser(null);
+    expect(await failure("select * from public.notification_preferences")).toMatch(/permission denied/i);
+  });
+
+  it("lets a member create and change only their own preference", async () => {
+    await asUser(alice);
+    expect(
+      await failure("insert into public.notification_preferences (user_id, notify_activity) values ($1, false)", [alice]),
+    ).toBeNull();
+    expect(
+      (await db.query("update public.notification_preferences set notify_activity = true where user_id = $1 returning 1", [alice])).rows,
+    ).toHaveLength(1);
+  });
+
+  it("does not let a member create, read, or change someone else's preference", async () => {
+    await asUser(bob);
+    expect(
+      await failure("insert into public.notification_preferences (user_id, notify_activity) values ($1, false)", [alice]),
+    ).toMatch(/row-level security/i);
+    expect((await db.query("select * from public.notification_preferences where user_id = $1", [alice])).rows).toHaveLength(0);
+    expect(
+      (await db.query("update public.notification_preferences set notify_activity = false where user_id = $1 returning 1", [alice])).rows,
+    ).toHaveLength(0);
+    // There is no DELETE privilege at all; a row goes away only with its member (cascade).
+    expect(await failure("delete from public.notification_preferences where user_id = $1", [alice])).toMatch(/permission denied/i);
+  });
+
+  it("defaults to on and cannot change the owner", async () => {
+    await asUser(bob);
+    await db.query("insert into public.notification_preferences (user_id) values ($1)", [bob]);
+    const row = await db.query<{ notify_activity: boolean }>("select notify_activity from public.notification_preferences where user_id = $1", [bob]);
+    expect(row.rows[0].notify_activity).toBe(true);
+    expect(await failure("update public.notification_preferences set user_id = $1 where user_id = $2", [alice, bob])).toMatch(/permission denied/i);
+  });
+});

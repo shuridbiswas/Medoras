@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireMember } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { reportError } from "@/lib/monitoring/report";
 import {
   commentSchema,
   editPostSchema,
@@ -77,13 +79,19 @@ export async function createPost(
   });
   if (!parsed.success) return invalid(parsed.error);
 
+  const limited = await checkRateLimit("post", user.id);
+  if (!limited.ok) return { status: "error", message: limited.message };
+
   const supabase = await createClient();
   const { error } = await supabase.from("posts").insert({
     author_id: user.id,
     category: parsed.data.category,
     body: parsed.data.body,
   });
-  if (error) return { status: "error", message: friendly(error) };
+  if (error) {
+    reportError("posts.insert", error);
+    return { status: "error", message: friendly(error) };
+  }
 
   refresh(profile.username);
   return { status: "success", message: "Posted.", nonce: Date.now() };
@@ -108,7 +116,10 @@ export async function updatePost(
     .eq("id", parsed.data.id)
     .eq("author_id", user.id)
     .select("id");
-  if (error) return { status: "error", message: friendly(error) };
+  if (error) {
+    reportError("posts.update", error);
+    return { status: "error", message: friendly(error) };
+  }
   if (!data || data.length === 0)
     return { status: "error", message: NOT_YOURS };
 
@@ -136,7 +147,10 @@ export async function deletePost(postId: string): Promise<ActionResult> {
     .eq("id", postId)
     .eq("author_id", user.id)
     .select("id");
-  if (error) return fail(GENERIC_ERROR);
+  if (error) {
+    reportError("posts.delete", error);
+    return fail(GENERIC_ERROR);
+  }
   if (!data || data.length === 0) return fail(NOT_YOURS);
 
   refresh(profile.username);
@@ -151,6 +165,9 @@ export async function setLike(
   const { user } = await requireMember();
   if (!idSchema.safeParse(postId).success) return fail(GENERIC_ERROR);
 
+  const limited = await checkRateLimit("like", user.id);
+  if (!limited.ok) return fail(limited.message);
+
   const supabase = await createClient();
   if (liked) {
     const { error } = await supabase
@@ -158,6 +175,7 @@ export async function setLike(
       .insert({ post_id: postId, user_id: user.id });
     // 23505: already liked. 23503: the post was deleted.
     if (error && error.code !== "23505") {
+      if (error.code !== "23503") reportError("post_likes.insert", error);
       return fail(
         error.code === "23503" ? "That post is no longer available." : GENERIC_ERROR,
       );
@@ -185,6 +203,9 @@ export async function addComment(
   if (!parsed.success)
     return fail(parsed.error.issues[0]?.message ?? GENERIC_ERROR);
 
+  const limited = await checkRateLimit("comment", user.id);
+  if (!limited.ok) return fail(limited.message);
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("post_comments")
@@ -196,6 +217,7 @@ export async function addComment(
     .select("id, post_id, body, created_at")
     .single();
   if (error || !data) {
+    if (error && error.code !== "23503") reportError("post_comments.insert", error);
     return fail(
       error?.code === "23503"
         ? "That post is no longer available."
@@ -250,6 +272,9 @@ export async function loadMorePosts(
   const { user } = await requireMember();
   const parsed = feedRequestSchema.safeParse(request);
   if (!parsed.success) return fail(GENERIC_ERROR);
+
+  const limited = await checkRateLimit("api", user.id);
+  if (!limited.ok) return fail(limited.message);
 
   const { failed, ...page } = await getFeedPage(user.id, parsed.data);
   if (failed) return fail("We couldn't load more posts. Please try again.");

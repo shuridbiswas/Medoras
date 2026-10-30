@@ -10,6 +10,8 @@ import {
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
 import { getUser } from "@/lib/auth/session";
 import { safeNextPath } from "@/lib/auth/redirect";
+import { sendToMember } from "@/lib/email/send";
+import { securityNotificationEmail } from "@/lib/email/templates";
 import { siteConfig } from "@/lib/site";
 import {
   flattenErrors,
@@ -242,6 +244,16 @@ export async function updatePassword(
 
   // Sign out every other device that still holds an old session.
   await supabase.auth.signOut({ scope: "others" });
+
+  // Tell the member, so a hijacked account is noticed. Best effort; never blocks the change.
+  await sendToMember(
+    user,
+    securityNotificationEmail({
+      firstName: String(user.user_metadata?.first_name ?? ""),
+      event: "password_changed",
+    }),
+    "security",
+  );
   redirect("/home");
 }
 

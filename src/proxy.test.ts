@@ -46,7 +46,7 @@ describe("proxy route protection", () => {
   });
 
   it("protects the search page and the not-yet-built module pages", async () => {
-    for (const path of ["/search", "/communities", "/mentorship", "/careers", "/saved"]) {
+    for (const path of ["/search", "/communities", "/mentorship", "/careers", "/saved", "/feedback"]) {
       expect(await run(path)).toBe(`/login?next=${encodeURIComponent(path)}`);
     }
     expect(await run("/search?q=amina")).toBe("/login?next=%2Fsearch");

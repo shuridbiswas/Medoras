@@ -9,6 +9,7 @@ import { requireMember } from "@/lib/auth/session";
 import { avatarUrl } from "@/lib/storage-url";
 import { FIELDS } from "@/features/onboarding/options";
 import { cleanTerms, searchMembers, validField } from "@/features/home/search";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const metadata: Metadata = {
   title: "Search members",
@@ -50,9 +51,11 @@ async function SearchContent({ searchParams }: Props) {
   const mentors = first(params.mentors) === "1";
   const searching = cleanTerms(q).length > 0 || Boolean(field) || mentors;
 
-  const result = searching
-    ? await searchMembers(user.id, { q, field, mentors })
-    : { members: [] };
+  const limited = searching ? await checkRateLimit("search", user.id) : null;
+  const result =
+    searching && limited?.ok !== false
+      ? await searchMembers(user.id, { q, field, mentors })
+      : { members: [] };
 
   const heading = mentors
     ? "Members open to mentoring"
@@ -99,7 +102,11 @@ async function SearchContent({ searchParams }: Props) {
           </button>
         </form>
 
-        {!searching ? (
+        {limited && !limited.ok ? (
+          <p role="alert" className="text-sm text-destructive">
+            {limited.message}
+          </p>
+        ) : !searching ? (
           <EmptyState
             icon={Search}
             title="Find people to connect with"

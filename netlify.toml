@@ -1,0 +1,35 @@
+# Netlify build configuration for Medyra.
+#
+# Netlify detects Next.js and applies its official OpenNext adapter (@netlify/plugin-nextjs)
+# automatically, so no plugin entry is needed. Do NOT add `output: "export"`: Medyra needs
+# server rendering, Server Actions and API routes.
+#
+# Secrets (Supabase keys, Resend, Sentry, Upstash, Pinecone) are NEVER set here. Add them in
+# Netlify > Site configuration > Environment variables, scoped per deploy context.
+# See DEPLOYMENT.md for the full list.
+
+[build]
+  command = "npm run build"
+  # The adapter manages the publish directory for Next.js; do not set `publish`.
+
+[build.environment]
+  # Next.js 16 and Sentry require Node 20.19+. 22 is the current LTS line.
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--no-audit --no-fund"
+
+# Public label for the deploy context. Browsers cannot read Netlify's CONTEXT variable, so the
+# app reads this instead (Sentry environment, health check). It is not a secret.
+[context.production.environment]
+  NEXT_PUBLIC_APP_ENV = "production"
+
+[context.deploy-preview.environment]
+  NEXT_PUBLIC_APP_ENV = "preview"
+
+[context.branch-deploy.environment]
+  NEXT_PUBLIC_APP_ENV = "preview"
+
+# Browsers should not cache the health check.
+[[headers]]
+  for = "/api/health"
+  [headers.values]
+    Cache-Control = "no-store"

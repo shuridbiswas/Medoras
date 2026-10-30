@@ -144,6 +144,35 @@ rollback;
 - Post 21 times within an hour: the database refuses ("posting too quickly").
 - Try a 3,001-character post, an empty post, or a file that is not an image: all are refused.
 
+## 13. Infrastructure checks (optional services)
+
+Every service below is optional. With none configured, everything above still works.
+
+**Health check.** `GET http://localhost:3000/api/health` returns `{"status":"ok","services":{...}}`. Each flag is `true` only when that service's variables are set. It never shows a value.
+
+**Sentry (deliberate test exception).**
+1. Put your DSN in `.env.local` as `NEXT_PUBLIC_SENTRY_DSN`, and a long random string as `SENTRY_TEST_TOKEN`. Restart `npm run dev`.
+2. Run (replace the token):
+   ```bash
+   curl -i -H "x-sentry-test-token: <your SENTRY_TEST_TOKEN>" http://localhost:3000/api/sentry-test
+   ```
+   Expect HTTP 500. Without the header, or with a wrong one, you get 404 (the route stays invisible).
+3. In Sentry > Issues, within a minute, find "Medyra Sentry test: deliberate server exception" with environment `development`. Open it and check the event has **no** cookies, request body, query string, email or IP.
+4. For a browser error, open any page, press F12 > Console and run `setTimeout(() => { throw new Error("browser test") })` then look for it in Sentry. (Errors thrown directly in the console are sandboxed and are not captured; the timeout form works.)
+5. Remove `SENTRY_TEST_TOKEN` afterwards.
+
+**Redis rate limiting (Upstash).**
+1. Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in `.env.local`, restart, confirm `/api/health` shows `"upstashRedis": true`.
+2. Publish 11 posts quickly with one account. The 11th shows "You're posting quickly. Please wait a few minutes." (limit 10 per 10 minutes). Comments stop at 21 in 10 minutes; searches at 31 per minute.
+3. In the Upstash console > Data Browser, keys start with `medyra:development:rl:` and expire on their own.
+4. Failure drill: put a wrong token in `.env.local`. Posting still works (rate limiting fails open) and a `rate-limit` error is reported to Sentry if configured.
+
+**Email (Resend).** See EMAIL_SETUP.md section 6. With `RESEND_API_KEY` and `EMAIL_FROM` set, finishing onboarding sends a welcome email, and changing your password in Settings sends a security notice. Settings > Email notifications saves your preference (stored in `notification_preferences`).
+
+**Feedback (ProductBridge).** Set `NEXT_PUBLIC_PRODUCTBRIDGE_ORG_ID`, restart, open the account menu > **Feedback**. The three cards open your ProductBridge portal tabs in a new browser tab. Without the id the page shows a contact fallback.
+
+**Pinecone.** Not used by any feature yet. `npm test -- src/lib/pinecone` runs its unit tests (mocked, no credentials needed).
+
 ## Cleaning up
 
 Delete test users in Authentication > Users (their profiles, posts, likes, comments and images' rows cascade). Remove stored images in Storage if you want a clean slate.

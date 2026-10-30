@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu } from "@base-ui/react/menu";
-import { ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronDown, LogOut, MessageSquareHeart, Settings, User } from "lucide-react";
 import { MemberAvatar } from "@/components/member-avatar";
 import { signOut } from "@/features/auth/actions";
 
@@ -47,6 +47,10 @@ export function UserMenu({
             <Menu.LinkItem href="/settings" className={item}>
               <Settings className="size-4" aria-hidden="true" />
               Settings
+            </Menu.LinkItem>
+            <Menu.LinkItem href="/feedback" className={item}>
+              <MessageSquareHeart className="size-4" aria-hidden="true" />
+              Feedback
             </Menu.LinkItem>
             <Menu.Separator className="my-1 h-px bg-border" />
             <form action={signOut}>
