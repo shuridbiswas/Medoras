@@ -499,12 +499,14 @@ describe("notifications", () => {
     expect(await rows("select * from public.notifications")).toHaveLength(0);
   });
 
-  it("stays silent for blocked pairs", async () => {
+  it("stays silent for blocked pairs (and the comment itself is refused)", async () => {
     const post = await newPost(alice);
     await asUser(alice);
     await db.query("insert into public.member_blocks (blocker_id, blocked_id) values ($1, $2)", [alice, bob]);
     await asUser(bob);
-    await db.query("insert into public.post_comments (post_id, author_id, body) values ($1, $2, 'blocked')", [post, bob]);
+    expect(
+      await failure("insert into public.post_comments (post_id, author_id, body) values ($1, $2, 'blocked')", [post, bob]),
+    ).toMatch(/row-level security/i);
     await asUser(alice);
     expect(await rows("select * from public.notifications")).toHaveLength(0);
   });
