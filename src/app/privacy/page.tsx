@@ -37,8 +37,9 @@ export default function Page() {
       <h2>2. What we collect and why</h2>
       <ul>
         <li>
-          <strong>Account:</strong> your email address and a password (held, hashed, by our sign-in provider), and, if you
-          turn it on, an authenticator-app factor and hashed one-time recovery codes. Used to sign you in and protect your
+          <strong>Account:</strong> your email address and a password (held, hashed, by our sign-in provider). At each
+          sign-in we email a 6-digit code to your address (when email delivery is set up) and keep a short log of codes
+          sent and wrong codes entered, with no code itself, to limit guessing. Used to sign you in and protect your
           account.
         </li>
         <li>
@@ -64,7 +65,7 @@ export default function Page() {
           Guidelines you accepted and when, and any data export or deletion request.
         </li>
         <li>
-          <strong>Technical data:</strong> sign-in session cookies, the time of your last sign-in, and, if enabled, error
+          <strong>Technical data:</strong> sign-in session cookies, two short-lived signed cookies for the email-code step, the time of your last sign-in, and, if enabled, error
           reports with message text removed (see section 4).
         </li>
       </ul>
@@ -129,8 +130,9 @@ export default function Page() {
 
       <h2>5. Cookies</h2>
       <p>
-        Medyra sets only the cookies needed to keep you signed in, plus one that remembers if you chose not to stay signed
-        in. There are no advertising or analytics cookies.
+        Medyra sets only the cookies needed to keep you signed in, one that remembers if you chose not to stay signed in,
+        and two signed cookies that record that you confirmed a sign-in with an emailed code. There are no advertising or
+        analytics cookies.
       </p>
 
       <h2>6. How long we keep it</h2>
@@ -167,7 +169,7 @@ export default function Page() {
 
       <h2>8. Security</h2>
       <p>
-        We protect accounts with sign-in by authenticator app, row-level database rules that limit what each member can
+        We protect accounts with a 6-digit code emailed at each sign-in (only as safe as your email account), row-level database rules that limit what each member can
         read or change, rate limits, and logging of staff actions. No system is perfectly secure.{" "}
         <em>
           (Open item: a written confidentiality-incident procedure, including how affected people and the regulator are

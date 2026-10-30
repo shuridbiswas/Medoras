@@ -11,7 +11,7 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
  * row level security lets that member see; every table below is also filtered to the member. It
  * includes the member's own content and settings, and for connections, follows, blocks and mutes
  * only the other member's id (not their profile). Moderation notes written by staff are not
- * included (they are not readable by the member). Passwords and authenticator secrets are held by
+ * included (they are not readable by the member). Passwords are held by
  * Supabase Auth and are not exported.
  */
 const LIMIT = 10_000;
@@ -54,7 +54,7 @@ export async function exportMemberData(user: Pick<User, "id" | "email" | "create
   return {
     about: {
       generated_at: new Date().toISOString(),
-      note: "A copy of the personal information Medyra holds about you. Passwords and authenticator secrets are held by the sign-in provider and are not included.",
+      note: "A copy of the personal information Medyra holds about you. Passwords are held by the sign-in provider and are not included.",
     },
     account: { id: me, email: user.email ?? null, created_at: user.created_at, last_sign_in_at: user.last_sign_in_at ?? null },
     profile,

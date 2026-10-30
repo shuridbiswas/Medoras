@@ -25,8 +25,8 @@ export default function Page() {
 
       <h2>2. Your account</h2>
       <p>
-        You are responsible for what happens on your account. Medyra requires an authenticator app for sign-in; keep your
-        recovery codes private and tell us if you think your account was accessed by someone else. Do not share your
+        You are responsible for what happens on your account. Medyra asks for a 6-digit code emailed to you at each sign-in; never share
+        that code, keep your email account secure, and tell us if you think your account was accessed by someone else. Do not share your
         account.
       </p>
 

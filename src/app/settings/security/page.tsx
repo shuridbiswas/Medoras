@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldAlert } from "lucide-react";
+import { Mail } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppPage } from "@/components/layout/app-page";
 import { requireMember } from "@/lib/auth/session";
-import { mfaMode } from "@/lib/auth/mfa";
-import { createClient } from "@/lib/supabase/server";
-import { AuthenticatorPanel, type FactorSummary } from "@/features/security/components/authenticator-panel";
+import { CODE_TTL_MINUTES, maskEmail, mfaMode } from "@/lib/auth/mfa";
+import { isTwoFactorConfigured } from "@/lib/auth/two-factor";
 import { SessionsPanel } from "@/features/security/components/sessions-panel";
 
 export const metadata: Metadata = {
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-type Props = { searchParams: Promise<{ setup?: string; recovered?: string }> };
+type Props = { searchParams: Promise<{ admin_2fa?: string }> };
 
 export default function SecurityPage({ searchParams }: Props) {
   return (
@@ -27,26 +26,9 @@ export default function SecurityPage({ searchParams }: Props) {
 const section = "rounded-2xl border border-border bg-surface p-5 sm:p-7";
 
 async function SecurityContent({ searchParams }: Props) {
-  // Members without an authenticator may be here (this is where they set one up); members who
-  // have one must have passed it.
-  const { user, profile } = await requireMember({ mfa: "allow-enrollment" });
+  const { user, profile } = await requireMember();
   const params = await searchParams;
-  const mode = mfaMode();
-
-  const supabase = await createClient();
-  const { data: factorData } = await supabase.auth.mfa.listFactors();
-  const factors: FactorSummary[] = (factorData?.totp ?? []).map((f) => ({
-    id: f.id,
-    name: f.friendly_name || "Authenticator app",
-    createdAt: new Date(f.created_at).toLocaleDateString("en-CA"),
-  }));
-
-  const { data: codes } = await supabase
-    .from("mfa_recovery_codes")
-    .select("used_at")
-    .eq("user_id", user.id)
-    .overrideTypes<{ used_at: string | null }[], { merge: false }>();
-  const remaining = codes && codes.length > 0 ? codes.filter((c) => !c.used_at).length : null;
+  const active = mfaMode() !== "off" && isTwoFactorConfigured();
 
   return (
     <>
@@ -60,32 +42,30 @@ async function SecurityContent({ searchParams }: Props) {
           <p className="mt-1 text-muted-foreground">Protect your account and control where you are signed in.</p>
         </div>
 
-        {params.recovered ? (
-          <div role="status" className="rounded-xl border border-maroon-200 bg-maroon-50 p-4 text-sm text-maroon-900">
-            Your recovery code worked and your old authenticator was removed. Set up a new one now to keep your account protected.
-          </div>
-        ) : null}
-        {factors.length === 0 && (params.setup || mode === "required") ? (
-          <div
-            role="status"
-            className="flex gap-3 rounded-xl border border-maroon-200 bg-maroon-50 p-4 text-sm text-maroon-900"
-          >
-            <ShieldAlert className="mt-0.5 size-4.5 shrink-0 text-maroon-700" aria-hidden="true" />
-            <p>
-              <strong>Set up two-step sign-in to continue.</strong> Medyra asks every member for an authenticator
-              app code at sign-in to protect a community that shares sensitive professional conversations. It takes
-              about two minutes. You can also sign out and come back later.
-            </p>
+        {params.admin_2fa === "unavailable" ? (
+          <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            The admin area needs email codes to be set up on this server (a signing secret and email delivery) and
+            they are not. Ask whoever runs the deployment to set <code>TWO_FACTOR_SECRET</code>, <code>RESEND_API_KEY</code> and{" "}
+            <code>EMAIL_FROM</code>.
           </div>
         ) : null}
 
-        <section aria-labelledby="mfa" className={section}>
-          <h2 id="mfa" className="text-xl font-bold text-maroon-900">
-            Two-step sign-in
+        <section aria-labelledby="two-step" className={section}>
+          <h2 id="two-step" className="flex items-center gap-2 text-xl font-bold text-maroon-900">
+            <Mail className="size-5 text-maroon-600" aria-hidden="true" />
+            Two-step sign-in by email
           </h2>
-          <div className="mt-4">
-            <AuthenticatorPanel factors={factors} recoveryRemaining={remaining} required={mode === "required"} autoStart={Boolean(params.setup)} />
-          </div>
+          <p className="mt-3 text-sm text-maroon-900/85">
+            {active
+              ? `Every time you sign in, we email a 6-digit code to ${maskEmail(user.email)} and you enter it to continue. The code works once and for ${CODE_TTL_MINUTES} minutes. This is on for every member and can't be turned off.`
+              : "Two-step sign-in by email is not switched on for this server yet. When it is, every sign-in will ask for a 6-digit code sent to your email address."}
+          </p>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            <li>Never share the code. Medyra will never ask you for it.</li>
+            <li>If you get a code you didn&apos;t ask for, someone may know your password: reset it right away.</li>
+            <li>It protects your account only as well as your email account is protected. Use a strong password and two-step sign-in there too.</li>
+            <li>Lost access to your email? Use the <Link href="/contact" className="underline underline-offset-2">contact page</Link>; you will be asked to prove who you are.</li>
+          </ul>
         </section>
 
         <section aria-labelledby="sessions" className={section}>

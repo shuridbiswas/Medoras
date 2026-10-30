@@ -85,6 +85,7 @@ describe("service status and health check", () => {
       "NEXT_PUBLIC_PRODUCTBRIDGE_ORG_ID",
       "PINECONE_API_KEY",
       "PINECONE_INDEX",
+      "TWO_FACTOR_SECRET",
     ])
       vi.stubEnv(name, "");
   });
@@ -97,7 +98,18 @@ describe("service status and health check", () => {
       resend: false,
       productbridge: false,
       pinecone: false,
+      twoFactorEmail: false,
     });
+  });
+
+  it("reports email sign-in codes as on only with the signing secret AND email delivery", () => {
+    vi.stubEnv("TWO_FACTOR_SECRET", "s".repeat(40));
+    expect(serviceStatus().twoFactorEmail).toBe(false);
+    vi.stubEnv("RESEND_API_KEY", "re_x");
+    vi.stubEnv("EMAIL_FROM", "Medyra <a@b.co>");
+    expect(serviceStatus().twoFactorEmail).toBe(true);
+    vi.stubEnv("TWO_FACTOR_SECRET", "too-short");
+    expect(serviceStatus().twoFactorEmail).toBe(false);
   });
 
   it("needs ALL variables of a service before calling it configured", () => {

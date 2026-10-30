@@ -17,6 +17,8 @@ export type ServiceStatus = {
   resend: boolean;
   productbridge: boolean;
   pinecone: boolean;
+  /** Email sign-in codes can be sent and checked (signing secret plus email delivery). */
+  twoFactorEmail: boolean;
 };
 
 export function serviceStatus(): ServiceStatus {
@@ -31,5 +33,9 @@ export function serviceStatus(): ServiceStatus {
     resend: on(process.env.RESEND_API_KEY) && on(process.env.EMAIL_FROM),
     productbridge: on(process.env.NEXT_PUBLIC_PRODUCTBRIDGE_ORG_ID),
     pinecone: on(process.env.PINECONE_API_KEY) && on(process.env.PINECONE_INDEX),
+    twoFactorEmail:
+      (process.env.TWO_FACTOR_SECRET?.length ?? 0) >= 32 &&
+      on(process.env.RESEND_API_KEY) &&
+      on(process.env.EMAIL_FROM),
   };
 }

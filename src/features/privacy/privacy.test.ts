@@ -135,7 +135,7 @@ describe("exportMemberData", () => {
   it("reads only the member's own rows from member tables, never staff tables", async () => {
     await exportMemberData(user);
     const tables = db.ops.map((o) => o.table);
-    for (const forbidden of ["moderation_actions", "audit_logs", "staff_roles", "mfa_recovery_codes", "member_status"]) {
+    for (const forbidden of ["moderation_actions", "audit_logs", "staff_roles", "two_factor_events", "member_status"]) {
       expect(tables).not.toContain(forbidden);
     }
     // Every query is scoped to the member by one of the ownership columns.
@@ -161,7 +161,7 @@ describe("exportMemberData", () => {
 
   it("states what is not included", async () => {
     const result = await exportMemberData(user);
-    expect(result.about.note).toMatch(/passwords and authenticator secrets/i);
+    expect(result.about.note).toMatch(/passwords are held by the sign-in provider/i);
   });
 
   it("does not carry secrets or other members' profiles", async () => {

@@ -1,202 +1,139 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isRecentAuth, requireUser } from "@/lib/auth/session";
-import { mfaMode } from "@/lib/auth/mfa";
+import { getSessionId, requireUser } from "@/lib/auth/session";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { reportError } from "@/lib/monitoring/report";
 import { sendToMember } from "@/lib/email/send";
-import { securityNotificationEmail, type SecurityEvent } from "@/lib/email/templates";
-import type { User } from "@supabase/supabase-js";
+import { twoFactorCodeEmail } from "@/lib/email/templates";
 import {
-  factorIdSchema,
-  reauthSchema,
-  recoveryCodeSchema,
-  totpCodeSchema,
-  type SecurityFormState,
-} from "@/features/security/schemas";
-import { generateRecoveryCodes, hashRecoveryCode } from "@/features/security/recovery";
+  CODE_TTL_MINUTES,
+  MAX_CODES_PER_HOUR,
+  MAX_WRONG_CODES,
+  RESEND_COOLDOWN_SECONDS,
+  WRONG_CODE_WINDOW_MINUTES,
+  maskEmail,
+} from "@/lib/auth/mfa";
+import {
+  codesMatch,
+  generateCode,
+  isTwoFactorConfigured,
+  markVerified,
+  readChallenge,
+  startChallenge,
+} from "@/lib/auth/two-factor";
+import { emailCodeSchema, reauthSchema, type SecurityFormState } from "@/features/security/schemas";
 
 /**
- * Account-security actions. None of them ever logs or returns a secret except the two values the
- * member must see once: the authenticator setup secret and the recovery codes.
- *
- * Sensitive changes (removing an authenticator, new recovery codes) need a recent sign-in. When
- * the sign-in is older they return { reauth: true } and the page sends the member to /reauth.
+ * Account-security actions. A code is generated here, emailed to the member's own verified
+ * address, and kept only as a keyed digest inside a signed cookie (see two-factor.ts); it is never
+ * returned to the browser, logged, or stored in the database. Sending and wrong guesses are
+ * limited per member in the database, where a member cannot erase the record.
  */
 
 const GENERIC_ERROR = "Something went wrong. Please try again.";
-const BAD_CODE = "That code didn't work. Check the clock on your phone and try again.";
-const REAUTH = "For your security, please confirm your password first.";
+const BAD_CODE = "That code didn't work. Check the newest email and try again.";
+const REAUTH_PASSWORD = "That password isn't right.";
 
-type Fail = { ok: false; error: string; reauth?: boolean };
+type Fail = { ok: false; error: string };
 type Result<T extends object = object> = ({ ok: true } & T) | Fail;
+const fail = (error: string): Fail => ({ ok: false, error });
 
-const fail = (error: string, reauth = false): Fail => (reauth ? { ok: false, error, reauth } : { ok: false, error });
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
-/** Best effort: a failure to email never blocks the change. */
-async function notify(user: User, event: SecurityEvent) {
-  await sendToMember(
+async function countEvents(kind: "send" | "failure", sinceMinutes: number, userId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("two_factor_events")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("kind", kind)
+    .gte("at", minutesAgo(sinceMinutes));
+  // If the log cannot be read, refuse rather than allow unlimited attempts.
+  if (error) throw new Error("two_factor_events_unavailable");
+  return count ?? 0;
+}
+
+async function logEvent(kind: "send" | "failure", userId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("two_factor_events").insert({ user_id: userId, kind });
+  if (error) reportError("two_factor_events.insert", error);
+}
+
+/** Emails a fresh 6-digit code to the signed-in member's own address. */
+export async function sendEmailCode(): Promise<Result<{ sentTo: string; minutes: number }>> {
+  const user = await requireUser({ mfa: "skip" });
+  if (!isTwoFactorConfigured()) return fail("Email codes aren't set up on this server yet.");
+  const sessionId = await getSessionId();
+  if (!sessionId || !user.email) return fail(GENERIC_ERROR);
+
+  const limited = await checkRateLimit("mfa", user.id);
+  if (!limited.ok) return fail(limited.message);
+
+  try {
+    // One code per minute, five per hour.
+    if ((await countEvents("send", RESEND_COOLDOWN_SECONDS / 60, user.id)) > 0) {
+      return fail("A code was just sent. Please wait a minute before asking for another.");
+    }
+    if ((await countEvents("send", 60, user.id)) >= MAX_CODES_PER_HOUR) {
+      return fail("Too many codes requested. Please try again in a while.");
+    }
+  } catch (error) {
+    reportError("two_factor.limits", error);
+    return fail(GENERIC_ERROR);
+  }
+
+  const code = generateCode();
+  const result = await sendToMember(
     user,
-    securityNotificationEmail({ firstName: String(user.user_metadata?.first_name ?? ""), event }),
+    twoFactorCodeEmail({ firstName: String(user.user_metadata?.first_name ?? ""), code, minutes: CODE_TTL_MINUTES }),
     "security",
   );
-}
-
-async function limited(userId: string): Promise<string | null> {
-  const result = await checkRateLimit("mfa", userId);
-  return result.ok ? null : result.message;
-}
-
-/** Starts adding an authenticator app. Returns what the member needs to scan or type in. */
-export async function startTotpEnrollment(): Promise<Result<{ factorId: string; qrCode: string; secret: string }>> {
-  const user = await requireUser({ mfa: "allow-enrollment" });
-  const tooMany = await limited(user.id);
-  if (tooMany) return fail(tooMany);
-
-  const supabase = await createClient();
-  // An abandoned, never-verified setup would block a new one with the same name; clear it first.
-  const existing = await supabase.auth.mfa.listFactors();
-  for (const factor of existing.data?.all ?? []) {
-    if (factor.status === "unverified") await supabase.auth.mfa.unenroll({ factorId: factor.id });
+  if (result.status !== "sent") {
+    return fail("We couldn't send the email right now. Please try again in a few minutes.");
   }
 
-  const { data, error } = await supabase.auth.mfa.enroll({
-    factorType: "totp",
-    friendlyName: "Authenticator app",
-  });
-  if (error || !data) {
-    reportError("mfa.enroll", error);
-    return fail(
-      error?.message?.toLowerCase().includes("enabled")
-        ? "Authenticator apps are not turned on for this project yet. Ask the Medyra team."
-        : GENERIC_ERROR,
-    );
-  }
-  return { ok: true, factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret };
+  // Only after the email left: the challenge cookie and the log entry.
+  await startChallenge(user.id, sessionId, code);
+  await logEvent("send", user.id);
+  return { ok: true, sentTo: maskEmail(user.email), minutes: CODE_TTL_MINUTES };
 }
 
-/** Finishes setup: the member proves the app works by entering a current code. */
-export async function verifyTotpEnrollment(factorId: string, code: string): Promise<Result> {
-  const user = await requireUser({ mfa: "allow-enrollment" });
-  const id = factorIdSchema.safeParse(factorId);
-  const parsed = totpCodeSchema.safeParse(code);
-  if (!id.success || !parsed.success) return fail(parsed.success ? GENERIC_ERROR : (parsed.error.issues[0]?.message ?? GENERIC_ERROR));
-  const tooMany = await limited(user.id);
-  if (tooMany) return fail(tooMany);
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: id.data, code: parsed.data });
-  if (error) return fail(BAD_CODE);
-
-  await notify(user, "mfa_added");
-  revalidatePath("/settings/security");
-  return { ok: true };
-}
-
-/** The sign-in challenge. On success the member continues to where they were going. */
-export async function verifyMfaChallenge(
+/** Checks the code. On success the sign-in is confirmed and the member continues where they were going. */
+export async function verifyEmailCode(
   _prev: SecurityFormState,
   formData: FormData,
 ): Promise<SecurityFormState> {
   const user = await requireUser({ mfa: "skip" });
   const next = formData.get("next");
-  const parsed = totpCodeSchema.safeParse(formData.get("code"));
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? BAD_CODE };
+  const parsed = emailCodeSchema.safeParse(formData.get("code"));
+  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? BAD_CODE };
+  if (!isTwoFactorConfigured()) return { status: "error", message: "Email codes aren't set up on this server yet." };
+  const sessionId = await getSessionId();
+  if (!sessionId) return { status: "error", message: GENERIC_ERROR };
+
+  try {
+    if ((await countEvents("failure", WRONG_CODE_WINDOW_MINUTES, user.id)) >= MAX_WRONG_CODES) {
+      return { status: "error", message: "Too many wrong codes. Please wait 15 minutes and request a new code." };
+    }
+  } catch (error) {
+    reportError("two_factor.limits", error);
+    return { status: "error", message: GENERIC_ERROR };
   }
-  const tooMany = await limited(user.id);
-  if (tooMany) return { status: "error", message: tooMany };
 
-  const supabase = await createClient();
-  const { data: factors } = await supabase.auth.mfa.listFactors();
-  const factor = factors?.totp?.[0];
-  if (!factor) return { status: "error", message: "No authenticator app is set up. Use a recovery code instead." };
+  const challenge = await readChallenge(user.id, sessionId);
+  if (!challenge) {
+    return { status: "error", message: "That code has expired. Ask for a new one." };
+  }
+  if (!codesMatch(challenge.h, user.id, sessionId, parsed.data)) {
+    await logEvent("failure", user.id);
+    return { status: "error", message: BAD_CODE };
+  }
 
-  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: parsed.data });
-  if (error) return { status: "error", message: BAD_CODE };
+  await markVerified(user.id, sessionId);
   redirect(safeNextPath(typeof next === "string" ? next : null));
-}
-
-/** Removes an authenticator. Needs a recent sign-in, and never the last one while MFA is required. */
-export async function removeFactor(factorId: string): Promise<Result> {
-  const user = await requireUser({ mfa: "allow-enrollment" });
-  const id = factorIdSchema.safeParse(factorId);
-  if (!id.success) return fail(GENERIC_ERROR);
-  if (!isRecentAuth(user)) return fail(REAUTH, true);
-
-  const supabase = await createClient();
-  const { data: factors } = await supabase.auth.mfa.listFactors();
-  const verified = factors?.totp ?? [];
-  if (mfaMode() === "required" && verified.length <= 1 && verified.some((f) => f.id === id.data)) {
-    return fail("MFA is required on Medyra. Add a second authenticator before removing this one.");
-  }
-
-  const { error } = await supabase.auth.mfa.unenroll({ factorId: id.data });
-  if (error) {
-    reportError("mfa.unenroll", error);
-    return fail(GENERIC_ERROR);
-  }
-  await notify(user, "mfa_removed");
-  revalidatePath("/settings/security");
-  return { ok: true };
-}
-
-/**
- * Creates a fresh set of recovery codes (replacing any old ones). Only hashes are stored; the
- * codes themselves are returned once. The database refuses this unless the session passed MFA.
- */
-export async function createRecoveryCodes(): Promise<Result<{ codes: string[] }>> {
-  const user = await requireUser({ mfa: "enforce" });
-  if (!isRecentAuth(user)) return fail(REAUTH, true);
-
-  const codes = generateRecoveryCodes();
-  const supabase = await createClient();
-  const removed = await supabase.from("mfa_recovery_codes").delete().eq("user_id", user.id);
-  if (removed.error) {
-    reportError("mfa_recovery_codes.delete", removed.error);
-    return fail(GENERIC_ERROR);
-  }
-  const { error } = await supabase
-    .from("mfa_recovery_codes")
-    .insert(codes.map((code) => ({ user_id: user.id, code_hash: hashRecoveryCode(code) })));
-  if (error) {
-    reportError("mfa_recovery_codes.insert", error);
-    return fail(GENERIC_ERROR);
-  }
-  revalidatePath("/settings/security");
-  return { ok: true, codes };
-}
-
-/**
- * Lost your device? A recovery code removes the authenticator so the member can sign in and set
- * up a new one. Wrong codes are rate-limited in the database as well.
- */
-export async function redeemRecoveryCode(
-  _prev: SecurityFormState,
-  formData: FormData,
-): Promise<SecurityFormState> {
-  const user = await requireUser({ mfa: "skip" });
-  const parsed = recoveryCodeSchema.safeParse(formData.get("code"));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? GENERIC_ERROR };
-  const tooMany = await limited(user.id);
-  if (tooMany) return { status: "error", message: tooMany };
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("redeem_mfa_recovery_code", { p_code: parsed.data });
-  if (error) {
-    return {
-      status: "error",
-      message: /too many/i.test(error.message) ? "Too many attempts. Please try again later." : GENERIC_ERROR,
-    };
-  }
-  if (!data) return { status: "error", message: "That recovery code didn't work, or it was already used." };
-
-  await notify(user, "mfa_recovery_used");
-  redirect("/settings/security?setup=1&recovered=1");
 }
 
 /** Confirms the member's password again, which counts as a fresh sign-in. */
@@ -204,24 +141,22 @@ export async function reauthenticate(
   _prev: SecurityFormState,
   formData: FormData,
 ): Promise<SecurityFormState> {
-  const user = await requireUser({ mfa: "allow-enrollment" });
+  const user = await requireUser();
   const parsed = reauthSchema.safeParse({ password: formData.get("password") });
-  if (!parsed.success || !user.email) {
-    return { status: "error", message: "Enter your password." };
-  }
-  const tooMany = await limited(user.id);
-  if (tooMany) return { status: "error", message: tooMany };
+  if (!parsed.success || !user.email) return { status: "error", message: "Enter your password." };
+  const limited = await checkRateLimit("mfa", user.id);
+  if (!limited.ok) return { status: "error", message: limited.message };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: user.email, password: parsed.data.password });
-  if (error) return { status: "error", message: "That password isn't right." };
+  if (error) return { status: "error", message: REAUTH_PASSWORD };
 
   const next = formData.get("next");
   redirect(safeNextPath(typeof next === "string" ? next : null, "/settings/security"));
 }
 
 export async function signOutOtherDevices(): Promise<Result> {
-  await requireUser({ mfa: "allow-enrollment" });
+  await requireUser();
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut({ scope: "others" });
   if (error) return fail(GENERIC_ERROR);
@@ -229,7 +164,7 @@ export async function signOutOtherDevices(): Promise<Result> {
 }
 
 export async function signOutEverywhere(): Promise<void> {
-  await requireUser({ mfa: "allow-enrollment" });
+  await requireUser();
   const supabase = await createClient();
   await supabase.auth.signOut({ scope: "global" });
   redirect("/login");

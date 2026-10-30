@@ -8,6 +8,7 @@ import {
   NOT_CONFIGURED_MESSAGE,
 } from "@/lib/supabase/env";
 import { SESSION_ONLY_COOKIE } from "@/lib/supabase/session-cookie";
+import { CHALLENGE_COOKIE, VERIFIED_COOKIE } from "@/lib/auth/two-factor";
 import { getUser } from "@/lib/auth/session";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { sendToMember } from "@/lib/email/send";
@@ -291,6 +292,10 @@ export async function signOut() {
     const supabase = await createClient();
     await supabase.auth.signOut();
   }
-  (await cookies()).delete(SESSION_ONLY_COOKIE);
+  const jar = await cookies();
+  jar.delete(SESSION_ONLY_COOKIE);
+  // The emailed-code confirmation belongs to this sign-in; clear it with the session.
+  jar.delete(VERIFIED_COOKIE);
+  jar.delete(CHALLENGE_COOKIE);
   redirect("/welcome");
 }

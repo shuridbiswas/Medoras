@@ -1,26 +1,22 @@
 // @vitest-environment node
 //
-// MFA enforcement, suspension and administrator gates in the server-side access layer.
+// Emailed-code enforcement, suspension and administrator gates in the server-side access layer.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { redirectMock, redirectOf } from "@/test/mocks";
 
-type Aal = { data: { currentLevel: string; nextLevel: string } | null; error: unknown };
-
 const ME = "11111111-1111-4111-8111-111111111111";
+const SESSION = "22222222-2222-4222-8222-222222222222";
 let user: { id: string; email_confirmed_at: string; last_sign_in_at?: string } | null;
-let aal: Aal;
+let claims: { data: { claims: { session_id?: string } } | null; error: unknown };
 let tables: Record<string, { data?: unknown; error?: unknown }>;
-let aalCalls = 0;
+let configured = true;
+let verified = false;
+let verifiedCalls: [string, string][] = [];
 
 const client = () => ({
   auth: {
     getUser: async () => ({ data: { user }, error: user ? null : { message: "no session" } }),
-    mfa: {
-      getAuthenticatorAssuranceLevel: async () => {
-        aalCalls++;
-        return aal;
-      },
-    },
+    getClaims: async () => claims,
   },
   from: (table: string) => ({
     select: () => ({
@@ -49,15 +45,15 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => client() }));
 vi.mock("@/lib/supabase/env", () => ({ isSupabaseConfigured: () => true }));
+vi.mock("@/lib/auth/two-factor", () => ({
+  isTwoFactorConfigured: () => configured,
+  isVerified: async (u: string, s: string) => {
+    verifiedCalls.push([u, s]);
+    return verified;
+  },
+}));
 
 const session = await import("@/lib/auth/session");
-
-const setAal = (currentLevel: string, nextLevel: string) => {
-  aal = { data: { currentLevel, nextLevel }, error: null };
-};
-const NOT_ENROLLED = () => setAal("aal1", "aal1");
-const ENROLLED_CHALLENGE_PENDING = () => setAal("aal1", "aal2");
-const ENROLLED_PASSED = () => setAal("aal2", "aal2");
 
 async function outcome(run: () => Promise<unknown>) {
   try {
@@ -69,42 +65,34 @@ async function outcome(run: () => Promise<unknown>) {
 
 beforeEach(() => {
   process.env.MFA_ENFORCEMENT = "required";
-  aalCalls = 0;
+  configured = true;
+  verified = false;
+  verifiedCalls = [];
   user = { id: ME, email_confirmed_at: "2026-11-01T00:00:00Z", last_sign_in_at: new Date().toISOString() };
+  claims = { data: { claims: { session_id: SESSION } }, error: null };
   tables = { profiles: { data: { id: ME, onboarding_completed: true, first_name: "Amina" } } };
-  NOT_ENROLLED();
 });
 
-describe("MFA enforcement (MFA_ENFORCEMENT=required, the default)", () => {
-  it("sends a member without an authenticator to the setup page, from every gate", async () => {
-    expect(await redirectOf(() => session.requireUser())).toBe("/settings/security?setup=1");
-    expect(await redirectOf(() => session.requireMember())).toBe("/settings/security?setup=1");
-    expect(await redirectOf(() => session.requireOnboardingPending())).toBe("/settings/security?setup=1");
-  });
-
-  it("lets the setup page itself through, so nobody is locked out of enrolling", async () => {
-    expect(await redirectOf(() => session.requireUser({ mfa: "allow-enrollment" }))).toBeNull();
-    const { profile } = await session.requireMember({ mfa: "allow-enrollment" });
-    expect(profile.first_name).toBe("Amina");
-  });
-
-  it("asks an enrolled member who has not yet proven the second factor for their code", async () => {
-    ENROLLED_CHALLENGE_PENDING();
+describe("emailed-code enforcement (the default)", () => {
+  it("sends a member who has not confirmed this sign-in to the code page, from every gate", async () => {
     expect(await redirectOf(() => session.requireUser())).toBe("/mfa/verify");
     expect(await redirectOf(() => session.requireMember())).toBe("/mfa/verify");
-    // Even the enrollment page must not be reachable without the second factor.
-    expect(await redirectOf(() => session.requireUser({ mfa: "allow-enrollment" }))).toBe("/mfa/verify");
+    expect(await redirectOf(() => session.requireOnboardingPending())).toBe("/mfa/verify");
   });
 
-  it("lets the challenge page itself through", async () => {
-    ENROLLED_CHALLENGE_PENDING();
-    expect(await redirectOf(() => session.requireUser({ mfa: "skip" }))).toBeNull();
+  it("checks the confirmation for this member and this sign-in session", async () => {
+    await redirectOf(() => session.requireUser());
+    expect(verifiedCalls).toEqual([[ME, SESSION]]);
   });
 
-  it("lets an enrolled member who passed the second factor in", async () => {
-    ENROLLED_PASSED();
+  it("lets a member who confirmed this sign-in through", async () => {
+    verified = true;
     expect(await redirectOf(() => session.requireUser())).toBeNull();
     expect((await session.requireMember()).user.id).toBe(ME);
+  });
+
+  it("lets the code page itself through", async () => {
+    expect(await redirectOf(() => session.requireUser({ mfa: "skip" }))).toBeNull();
   });
 
   it("still checks sign-in and email first", async () => {
@@ -112,33 +100,34 @@ describe("MFA enforcement (MFA_ENFORCEMENT=required, the default)", () => {
     expect(await redirectOf(() => session.requireUser())).toBe("/login");
     user = { id: ME, email_confirmed_at: "" as unknown as string };
     expect(await redirectOf(() => session.requireUser())).toBe("/login?error=verify_email");
-    expect(aalCalls).toBe(0);
+    expect(verifiedCalls).toHaveLength(0);
   });
 
-  it("fails closed when the assurance level cannot be read", async () => {
-    aal = { data: null, error: { message: "boom" } };
-    expect((await outcome(() => session.requireUser())).error).toBe("mfa_state_unavailable");
+  it("fails closed when the sign-in session cannot be identified", async () => {
+    claims = { data: { claims: {} }, error: null };
+    expect((await outcome(() => session.requireUser())).error).toBe("two_factor_state_unavailable");
+    claims = { data: null, error: { message: "boom" } };
+    expect((await outcome(() => session.requireUser())).error).toBe("two_factor_state_unavailable");
   });
 });
 
-describe("other enforcement levels", () => {
-  it("challenge: enrolled members are challenged, nobody is forced to enroll", async () => {
-    process.env.MFA_ENFORCEMENT = "challenge";
+describe("when email codes are not set up, or switched off", () => {
+  it("does not lock members out if the server has no secret or email delivery", async () => {
+    configured = false;
     expect(await redirectOf(() => session.requireUser())).toBeNull();
-    ENROLLED_CHALLENGE_PENDING();
-    expect(await redirectOf(() => session.requireUser())).toBe("/mfa/verify");
+    expect((await session.requireMember()).user.id).toBe(ME);
+    expect(verifiedCalls).toHaveLength(0);
   });
 
-  it("off: nothing is enforced and Supabase is not even asked", async () => {
+  it("is skipped entirely when MFA_ENFORCEMENT=off", async () => {
     process.env.MFA_ENFORCEMENT = "off";
-    ENROLLED_CHALLENGE_PENDING();
     expect(await redirectOf(() => session.requireUser())).toBeNull();
-    expect(aalCalls).toBe(0);
+    expect(verifiedCalls).toHaveLength(0);
   });
 
   it("an unrecognised setting falls back to the strict default", async () => {
     process.env.MFA_ENFORCEMENT = "maybe";
-    expect(await redirectOf(() => session.requireUser())).toBe("/settings/security?setup=1");
+    expect(await redirectOf(() => session.requireUser())).toBe("/mfa/verify");
   });
 });
 
@@ -172,11 +161,11 @@ describe("suspension", () => {
 describe("requireAdmin", () => {
   beforeEach(() => {
     tables.staff_roles = { data: { role: "admin" } };
+    verified = true;
   });
 
   it("returns a plain 404 to anyone who is not an administrator", async () => {
     tables.staff_roles = { data: null };
-    ENROLLED_PASSED();
     expect((await outcome(() => session.requireAdmin())).error).toBe("NEXT_NOT_FOUND");
     tables.staff_roles = { data: { role: "moderator" } };
     expect((await outcome(() => session.requireAdmin())).error).toBe("NEXT_NOT_FOUND");
@@ -187,21 +176,22 @@ describe("requireAdmin", () => {
     expect(await redirectOf(() => session.requireAdmin())).toBe("/login");
   });
 
-  it("requires a second factor even when MFA_ENFORCEMENT is off", async () => {
+  it("requires a confirmed sign-in even when MFA_ENFORCEMENT is off", async () => {
     process.env.MFA_ENFORCEMENT = "off";
-    NOT_ENROLLED();
-    expect(await redirectOf(() => session.requireAdmin())).toBe("/settings/security?setup=1");
-    ENROLLED_CHALLENGE_PENDING();
+    verified = false;
     expect(await redirectOf(() => session.requireAdmin())).toBe("/mfa/verify");
   });
 
-  it("lets an administrator who passed the second factor in", async () => {
-    ENROLLED_PASSED();
+  it("stays closed if email codes are not set up, instead of letting administrators in without them", async () => {
+    configured = false;
+    expect(await redirectOf(() => session.requireAdmin())).toBe("/settings/security?admin_2fa=unavailable");
+  });
+
+  it("lets an administrator who confirmed this sign-in in", async () => {
     expect((await session.requireAdmin()).user.id).toBe(ME);
   });
 
   it("does not let a suspended administrator in", async () => {
-    ENROLLED_PASSED();
     tables.member_status = { data: { status: "suspended" } };
     expect(await redirectOf(() => session.requireAdmin())).toBe("/suspended");
   });

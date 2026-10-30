@@ -235,10 +235,11 @@ export type AuditLogRow = {
   created_at: string;
 };
 
-export type RecoveryCodeRow = {
+export type TwoFactorEventRow = {
+  id: number;
   user_id: string;
-  created_at: string;
-  used_at: string | null;
+  kind: "send" | "failure";
+  at: string;
 };
 
 export type ConsentRecordRow = {
@@ -380,9 +381,9 @@ export type Database = {
       };
       moderation_actions: { Row: ModerationActionRow; Insert: never; Update: never; Relationships: [] };
       audit_logs: { Row: AuditLogRow; Insert: never; Update: never; Relationships: [] };
-      mfa_recovery_codes: {
-        Row: RecoveryCodeRow;
-        Insert: { user_id: string; code_hash: string };
+      two_factor_events: {
+        Row: TwoFactorEventRow;
+        Insert: Pick<TwoFactorEventRow, "user_id" | "kind">;
         Update: never;
         Relationships: [];
       };
@@ -426,7 +427,6 @@ export type Database = {
         Args: { p_appeal: string; p_decision: string; p_note?: string | null };
         Returns: undefined;
       };
-      redeem_mfa_recovery_code: { Args: { p_code: string }; Returns: boolean };
       record_data_export: { Args: Record<string, never>; Returns: string };
       admin_execute_deletion: { Args: { p_request: string }; Returns: undefined };
       set_retention_days: { Args: { p_key: string; p_days: number }; Returns: undefined };

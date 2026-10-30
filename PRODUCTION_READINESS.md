@@ -35,12 +35,12 @@ Checked from this machine with `curl` on 2 November 2026. These are results of r
 
 ### Tests that need live access and were **not** run
 
-These need a signed-in browser session, a real authenticator app, or a project with the new migrations. They are not claimed as passed.
+These need a signed-in browser session, a real inbox (email delivery configured), or a project with the new migrations. They are not claimed as passed.
 
 1. Signed-in `/` shows the home feed (needs a real login on the Netlify site).
-2. Sign in on Netlify, get redirected to MFA enrollment, scan the QR code with a real authenticator app, confirm, sign out, sign back in and pass the code challenge.
-3. Recovery code redemption on a live project (it deletes the member's rows from `auth.mfa_factors`; the `postgres` role must be allowed to do that. This is the single most important live check of the MFA work).
-4. Supabase **Auth > Multi-Factor > TOTP** is enabled on the project.
+2. Set `TWO_FACTOR_SECRET` and email delivery; sign in on Netlify, get sent to `/mfa/verify`, receive the 6-digit email, confirm, then sign out and in again and confirm a new code is required.
+3. The email arrives in a real inbox (not spam) from the verified sender, and a wrong code five times locks guessing for 15 minutes.
+4. `GET /api/health` shows `"twoFactorEmail":true` once configured, and the admin area opens only after the code.
 5. Report a post, comment and profile as one account; review, warn, remove, suspend and appeal as a bootstrapped administrator; confirm a suspended account is held at `/suspended`.
 6. Download my data and request deletion on a real account.
 7. Email delivery of the security notices (needs Resend credentials).
@@ -52,7 +52,7 @@ These need a signed-in browser session, a real authenticator app, or a project w
 
 | Area | What exists |
 | --- | --- |
-| Account security | TOTP via Supabase Auth: setup with QR code and key, confirm with a code, sign-in challenge, add or remove authenticators, ten one-time recovery codes (stored as SHA-256 hashes, redeemed through a rate-limited database function that resets the authenticator), password re-confirmation before sensitive changes (10-minute window), sign out other devices or everywhere. Enforcement is `MFA_ENFORCEMENT` (default `required`; `challenge` and `off` are documented rollout and emergency settings). Members without an authenticator are sent to a setup page, never locked out. The database also refuses to mint recovery codes from a session that has not passed the second factor. |
+| Account security | **Two-step sign-in by emailed 6-digit code** (replaces the authenticator-app design). After the password, each new sign-in must be confirmed with a code emailed to the member's own address. Codes are never stored: a keyed digest sits in a signed, HttpOnly, 10-minute cookie, and the proof of success is a second signed cookie tied to the member and that sign-in session, so a new login needs a new code. Limits: one code a minute, five an hour, five wrong guesses per 15 minutes (counted in `two_factor_events`, which a member cannot edit or delete). Password re-confirmation before sensitive changes (10-minute window), sign out other devices or everywhere. Enforcement is `MFA_ENFORCEMENT` (default `required`). If the signing secret or email delivery is missing the step is skipped for members (never a lockout; `/api/health` shows `twoFactorEmail:false`) and the admin area stays closed. |
 | User safety | Report post, comment or profile (a database function validates the target and keeps a 300-character snapshot); mute and unmute; block and unblock (blocks already existed) now also stop liking and commenting, in both directions, enforced by RLS; blocked and muted members are hidden from the feed and comments; mutes silence notifications; suspended members are blocked by RLS and by the access layer. |
 | Moderation | `/admin`, `/admin/reports`, `/admin/users`. Administrators only: everyone else gets a plain `404`, and administrators must pass a second factor whatever `MFA_ENFORCEMENT` says. Report queue with claim, dismiss, warn, remove content, suspend; direct suspend and restore; appeals; deletion requests; retention settings; audit log. Every decision runs inside a security definer function that re-checks the caller and writes an append-only audit entry in the same transaction. Members see a message (never internal notes) and can appeal. No automated or AI moderation exists and none is claimed. |
 | Privacy | Profile visibility (all members or connections only), directory listing, self-serve data export (JSON, POST only, recent sign-in, never cached), account deletion request with a 30-day cooling-off period and administrator execution, consent records written at onboarding, retention policies with a purge function, privacy contact configured by `PRIVACY_CONTACT_EMAIL`. |
@@ -74,9 +74,9 @@ Order of operations for a deploy:
 
 1. Revoke the old token. Create a new, **scoped** token (or use the Supabase SQL editor).
 2. Apply the two migrations to the dev project and run `supabase db advisors`.
-3. In Supabase **Auth > Multi-Factor**, enable TOTP.
+3. Set `TWO_FACTOR_SECRET` and make email delivery work (Resend). Check `/api/health` shows `twoFactorEmail:true`.
 4. Create the first administrator (SQL below), after that person has an account.
-5. Set `MFA_ENFORCEMENT` and (optionally) `PRIVACY_CONTACT_EMAIL` in Netlify. Note that with the default (`required`) every existing member is sent to MFA setup on their next visit.
+5. Set `TWO_FACTOR_SECRET` and (optionally) `PRIVACY_CONTACT_EMAIL` in Netlify. With email codes on, every member is asked for a code at their next sign-in.
 6. Deploy. Walk through the live checklist in section 2.
 
 ```sql
@@ -91,7 +91,7 @@ Run on 2 November 2026 on this machine:
 
 - `npm run lint`: clean.
 - `npm run typecheck`: clean (whole project).
-- `npm test`: **785 tests in 50 files pass**: 749 in `src` and `supabase` (of which 148 are database policy tests) plus 36 seed-tool tests. The 381 tests named in the brief are all part of this and still pass.
+- `npm test`: **784 tests in 50 files pass**: 748 in `src` and `supabase` (of which 148 are database policy tests) plus 36 seed-tool tests. The 381 tests named in the brief are all part of this and still pass.
 - `npm run build`: succeeds.
 - Database policy tests run the real migrations in PGlite (an in-memory Postgres) with stand-ins for Supabase's `auth` schema (including `auth.mfa_factors` and `auth.jwt()`). They validate our SQL and RLS, not a live project.
 
@@ -100,8 +100,8 @@ Run on 2 November 2026 on this machine:
 Must be done before real members, in rough order:
 
 1. **Revoke the exposed Supabase personal access token** and create a replacement scoped to the dev project (and later a separate one for production). Until then, anyone with the old token has account-level access.
-2. **Apply the two new migrations** and complete the live checks in section 2 (especially MFA recovery on a real project and the administrator flows).
-3. **Enable TOTP in the Supabase project** and decide `MFA_ENFORCEMENT` for launch. Keep `challenge` ready as the emergency switch.
+2. **Apply the two new migrations** and complete the live checks in section 2 (especially that the email arrives, and the administrator flows).
+3. **Set up email delivery and `TWO_FACTOR_SECRET`** (Resend with a verified domain). Until then there is no second step for members, and the admin area is closed. Know the limit: an email code protects an account only as well as the member's email account is protected, which is weaker than an authenticator app. Keep `MFA_ENFORCEMENT=off` as the emergency switch if email delivery fails.
 4. **A separate production Supabase project** with email confirmation on, Resend SMTP, the migrations, and its own keys. Previews and the current Netlify site use the dev project.
 5. **Qualified legal review** of the Privacy policy, Terms and Guidelines (Law 25, other Canadian obligations, French-language availability, minors, data location, provider contracts), a named person in charge of personal information, and `PRIVACY_CONTACT_EMAIL` set to a real monitored mailbox. The pages say they are drafts; do not remove that until a lawyer approves.
 6. **A moderation operating process**: who staffs `/admin`, response times, escalation for safety concerns, region-appropriate crisis resources (the report form only tells people to contact local emergency services), and a confidentiality-incident procedure.

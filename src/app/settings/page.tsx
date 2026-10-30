@@ -136,7 +136,7 @@ async function SettingsContent() {
               <Link href="/settings/security" className="font-medium text-maroon-700 underline underline-offset-2">
                 Account security
               </Link>
-              <span className="text-muted-foreground"> — authenticator app, recovery codes, signed-in devices</span>
+              <span className="text-muted-foreground"> — two-step sign-in by email, signed-in devices</span>
             </li>
             <li>
               <Link href="/settings/privacy" className="font-medium text-maroon-700 underline underline-offset-2">

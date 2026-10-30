@@ -218,22 +218,23 @@ The RLS tests apply the real migrations to an in-memory Postgres and check cross
 
 ## 14. Security, safety and privacy (Phase 4A)
 
-Needs the two Phase 4A migrations applied, TOTP enabled in the project, an authenticator app on your phone, and two accounts (A, B). Set `MFA_ENFORCEMENT=required` (or unset) to see enforcement; `off` skips it.
+Needs the two Phase 4A migrations applied, email delivery set up, and two accounts (A, B). Set `MFA_ENFORCEMENT=required` (or unset) to see enforcement; `off` skips it.
 
-**Two-step sign-in**
-1. Sign in as A. You land on `/settings/security?setup=1` and every other page sends you back there. Sign out still works.
-2. Choose "Set up authenticator app", scan the QR code, enter the 6-digit code. Save the recovery codes shown once.
-3. Sign out and in. After the password you are asked for a code; a wrong code is refused.
-4. In Account security try "Remove": you are asked to confirm your password (if your sign-in is older than 10 minutes). Removing the only authenticator is refused while MFA is required.
-5. Recovery: sign in, on the code screen choose "Lost your phone?", enter one recovery code. Your authenticator is removed and you are sent to set up a new one. The same code does not work twice. Five wrong codes lock further attempts for an hour.
-6. "Sign out other devices" in a second browser window ends that window's session.
+**Two-step sign-in by email code** (needs `TWO_FACTOR_SECRET` and Resend configured; check `/api/health` shows `"twoFactorEmail":true`)
+1. Sign in as A with the password. You land on `/mfa/verify`: "We emailed a 6-digit code to a•••n@…". Every other page sends you back there until you confirm.
+2. Open the email (subject "Your Medyra sign-in code: 123456"), enter the code, press Confirm. You continue to where you were going.
+3. A wrong code is refused. After five wrong codes in 15 minutes even the right code is refused until the window passes. "Send a new code" works once a minute and five times an hour.
+4. Wait 10 minutes after a code was sent: it has expired ("Ask for a new one").
+5. Sign out and in again: a new code is required (the confirmation belongs to one sign-in session).
+6. In Account security try "Sign out other devices" in a second browser window and confirm that window is signed out.
+7. Unset `TWO_FACTOR_SECRET` (or `MFA_ENFORCEMENT=off`) locally: no code is asked for, and `/admin` (for an administrator) shows the "email codes are not set up" notice instead of opening.
 
 **Reporting, muting, blocking**
 1. As B, press Report on one of A's posts, a comment, and A's profile. Pick a reason; send. Reporting the same item again is accepted silently; reporting your own content is refused.
 2. As A, Mute B on their profile: B's posts and comments disappear from A's feed and comment threads; B gets no hint. Unmute in Settings.
 3. As A, Block B. B can no longer like or comment on A's posts, connect, or follow (B sees only "You can't do that with this member").
 
-**Admin** (first make an administrator, see `DEPLOYMENT.md`, who must have an authenticator)
+**Admin** (first make an administrator, see `DEPLOYMENT.md`, who confirms the emailed code)
 1. Open `/admin` as a non-admin: 404. As the administrator: overview, audit log, retention, deletion requests.
 2. `/admin/reports`: Start review on B's report, then Warn, Remove content (post or comment) or Suspend with a message. As the reported member the message appears under Notifications; the internal note never does. A suspended member is held at `/suspended` and can appeal there.
 3. Decide the appeal (uphold or overturn). Overturning restores the account. Every step appears in the audit log, which has no edit or delete.

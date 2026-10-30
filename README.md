@@ -73,7 +73,7 @@ Signed in, onboarding unfinished: any private route -> /onboarding
 
 Migrations `20261102000001_safety_and_moderation.sql` and `20261102000002_account_security_and_privacy.sql`. **Apply them before deploying** (see `DEPLOYMENT.md`).
 
-- **Two-step sign-in** with an authenticator app (Supabase Auth TOTP), recovery codes, password re-confirmation for sensitive changes and sign-out of other devices: `/settings/security`. `MFA_ENFORCEMENT` (default `required`) controls enforcement; members without an authenticator are sent to setup, never locked out. Enable TOTP in the Supabase dashboard first.
+- **Two-step sign-in by email code:** after the password, each new sign-in is confirmed with a 6-digit code emailed to the member (`/mfa/verify`), plus password re-confirmation for sensitive changes and sign-out of other devices (`/settings/security`). Needs `TWO_FACTOR_SECRET` and email delivery (Resend); without them the step is skipped for members and the admin area stays closed. `MFA_ENFORCEMENT=off` is the emergency switch.
 - **Safety:** report a post, comment or profile; mute; block (blocks also stop liking and commenting); suspended members see only their notice and an appeal form (`/suspended`).
 - **Moderation** at `/admin`, `/admin/reports`, `/admin/users` (administrators only, always with a second factor; administrators are created in SQL). Decisions go through database functions that write an append-only audit log. **There is no automated or AI moderation.**
 - **Privacy** at `/settings/privacy`: profile visibility, directory listing, data download, account deletion (30-day cooling-off), consent records, retention, privacy contact (`PRIVACY_CONTACT_EMAIL`).

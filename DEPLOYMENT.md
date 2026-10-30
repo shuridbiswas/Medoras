@@ -108,14 +108,14 @@ Order matters. Do not deploy the code before the migrations exist.
 
 1. **Revoke** any Supabase personal access token that was ever pasted into chat or a file. Create a new one scoped to the project, or use the SQL editor.
 2. **Apply the migrations** `20261102000001_safety_and_moderation.sql` and `20261102000002_account_security_and_privacy.sql` (in that order, after the earlier ones). Run the Supabase Security and Performance advisors afterwards.
-3. In the Supabase dashboard enable **Authentication > Multi-Factor > TOTP**. Without it, setup fails with a clear message and, if `MFA_ENFORCEMENT=required`, nobody can pass the setup page. Keep `MFA_ENFORCEMENT=challenge` as the emergency switch.
+3. Turn on **email codes**: set `TWO_FACTOR_SECRET` (32+ random characters; see `.env.example`) and make sure email delivery works (`RESEND_API_KEY`, `EMAIL_FROM`, a verified Resend domain; see `EMAIL_SETUP.md`). `GET /api/health` then shows `"twoFactorEmail":true`. Without both, members are not asked for a code (they are never locked out) and the admin area stays closed. The codes are sent by Medyra through Resend, not by Supabase, so nothing needs enabling in the Supabase dashboard.
 4. Make the first administrator (after they have an account). Administrators are created only in SQL, never in the app:
    ```sql
    insert into public.staff_roles (user_id, role)
    select id, 'admin' from auth.users where email = 'you@example.org';
    ```
-   They then open `/admin` directly (there is deliberately no link), and must have set up an authenticator.
-5. In Netlify set `MFA_ENFORCEMENT` (see `.env.example`; unset means `required`) and, when a mailbox exists, `PRIVACY_CONTACT_EMAIL`. With `required`, every existing member is sent to authenticator setup on their next visit; they are never locked out of the setup page or of signing out.
+   They then open `/admin` directly (there is deliberately no link) and confirm the emailed code.
+5. In Netlify set `TWO_FACTOR_SECRET` and, when a mailbox exists, `PRIVACY_CONTACT_EMAIL`. `MFA_ENFORCEMENT` stays unset (= required); `off` is the emergency switch if email delivery breaks. Once the code step is on, every member is asked for an emailed code at their next sign-in; nobody is locked out of signing out.
 6. Deploy, then run the live checklist in `PRODUCTION_READINESS.md` section 2.
 
 Scheduled work that nothing runs yet (see `OBSERVABILITY.md`): `select private.run_retention_purge();` and carrying out due deletion requests from `/admin`.

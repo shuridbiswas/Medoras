@@ -1,7 +1,6 @@
 // @vitest-environment node
 //
 // Phase 4A account-security and privacy policies, run against the real migrations in PGlite.
-import { createHash } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createHarness, ids, type Harness } from "./helpers";
 
@@ -18,107 +17,37 @@ afterAll(async () => {
   await h.db.close();
 });
 
-const sha = (code: string) => createHash("sha256").update(code.toLowerCase().replace(/[^0-9a-z]/g, "")).digest("hex");
-const factor = (user: string) =>
-  h.db.query("insert into auth.mfa_factors (user_id, status) values ($1, 'verified')", [user]);
-
-async function giveCodes(user: string, codes: string[]) {
-  await h.asOwner();
-  for (const c of codes) await h.db.query("insert into public.mfa_recovery_codes (user_id, code_hash) values ($1, $2)", [user, sha(c)]);
-}
-
-describe("recovery codes: access", () => {
+describe("email sign-in code log", () => {
   it("blocks anonymous visitors", async () => {
     await h.asUser(null);
-    expect(await h.failure("select * from public.mfa_recovery_codes")).toMatch(/permission denied/i);
-    expect(await h.failure("select public.redeem_mfa_recovery_code('x')")).toMatch(/permission denied/i);
+    expect(await h.failure("select * from public.two_factor_events")).toMatch(/permission denied/i);
+    expect(await h.failure("insert into public.two_factor_events (user_id, kind) values ($1, 'send')", [alice])).toMatch(/permission denied/i);
   });
 
-  it("never lets a member read the hashes, even their own", async () => {
-    await giveCodes(alice, ["abcd-efgh-ijkl"]);
+  it("lets a member log and read only their own events", async () => {
     await h.asUser(alice);
-    expect(await h.failure("select code_hash from public.mfa_recovery_codes")).toMatch(/permission denied/i);
-    expect(await h.failure("select * from public.mfa_recovery_codes")).toMatch(/permission denied/i);
-    expect(await h.rows("select user_id, used_at from public.mfa_recovery_codes")).toHaveLength(1);
+    await h.db.query("insert into public.two_factor_events (user_id, kind) values ($1, 'send'), ($1, 'failure')", [alice]);
+    expect(await h.rows("select kind from public.two_factor_events order by kind")).toEqual([{ kind: "failure" }, { kind: "send" }]);
     await h.asUser(bob);
-    expect(await h.rows("select user_id from public.mfa_recovery_codes")).toHaveLength(0);
+    expect(await h.rows("select * from public.two_factor_events")).toHaveLength(0);
+    expect(await h.failure("insert into public.two_factor_events (user_id, kind) values ($1, 'failure')", [alice])).toMatch(/row-level security/i);
+    expect(await h.failure("insert into public.two_factor_events (user_id, kind) values ($1, 'other')", [bob])).toMatch(/check constraint/i);
   });
 
-  it("lets a member without an authenticator create codes, in their own name only", async () => {
+  it("can never be changed or deleted by the member, so the limit cannot be reset", async () => {
     await h.asUser(alice);
-    expect(await h.failure("insert into public.mfa_recovery_codes (user_id, code_hash) values ($1, $2)", [alice, sha("aaaa")])).toBeNull();
-    expect(await h.failure("insert into public.mfa_recovery_codes (user_id, code_hash) values ($1, $2)", [bob, sha("bbbb")])).toMatch(/row-level security/i);
-    expect(await h.failure("insert into public.mfa_recovery_codes (user_id, code_hash) values ($1, 'not-a-hash')", [alice])).toMatch(/check constraint/i);
+    await h.db.query("insert into public.two_factor_events (user_id, kind) values ($1, 'failure')", [alice]);
+    expect(await h.failure("delete from public.two_factor_events")).toMatch(/permission denied/i);
+    expect(await h.failure("update public.two_factor_events set kind = 'send'")).toMatch(/permission denied/i);
+    expect(await h.failure("update public.two_factor_events set at = now() - interval '1 day'")).toMatch(/permission denied/i);
+    expect(await h.rows("select * from public.two_factor_events")).toHaveLength(1);
   });
 
-  it("needs the second factor to create or replace codes once an authenticator is enrolled", async () => {
-    await h.asOwner();
-    await factor(alice);
-    await giveCodes(alice, ["old-code"]);
-    await h.asUser(alice, "aal1");
-    expect(await h.failure("insert into public.mfa_recovery_codes (user_id, code_hash) values ($1, $2)", [alice, sha("new1")])).toMatch(/row-level security/i);
-    expect((await h.db.query("delete from public.mfa_recovery_codes where user_id = $1 returning 1", [alice])).rows).toHaveLength(0);
-    await h.asUser(alice, "aal2");
-    expect(await h.failure("insert into public.mfa_recovery_codes (user_id, code_hash) values ($1, $2)", [alice, sha("new1")])).toBeNull();
-    expect((await h.db.query("delete from public.mfa_recovery_codes where user_id = $1 returning 1", [alice])).rows.length).toBeGreaterThan(0);
-  });
-});
-
-describe("redeeming a recovery code", () => {
-  it("removes the authenticator factors and the remaining codes, and is recorded in the audit log", async () => {
-    await h.asOwner();
-    await factor(alice);
-    await giveCodes(alice, ["ab12-cd34-ef56", "zz99-yy88-xx77"]);
-    await h.asUser(alice, "aal1");
-    // Case and separators do not matter.
-    expect((await h.rows<{ r: boolean }>("select public.redeem_mfa_recovery_code(' AB12 cd34-EF56 ') as r"))[0].r).toBe(true);
-    await h.asOwner();
-    expect(await h.rows("select * from auth.mfa_factors where user_id = $1", [alice])).toHaveLength(0);
-    expect(await h.rows("select * from public.mfa_recovery_codes where user_id = $1", [alice])).toHaveLength(0);
-    const audit = await h.rows<{ action: string; actor_id: string }>("select action, actor_id from public.audit_logs");
-    expect(audit).toEqual([{ action: "mfa.recovery_used", actor_id: alice }]);
-  });
-
-  it("works only once", async () => {
-    await h.asOwner();
-    await factor(alice);
-    await giveCodes(alice, ["one-time-code"]);
-    await h.asUser(alice);
-    expect((await h.rows<{ r: boolean }>("select public.redeem_mfa_recovery_code('one-time-code') as r"))[0].r).toBe(true);
-    await h.asOwner();
-    await giveCodes(alice, ["other-code"]); // a fresh set after re-enrolling
-    await h.asUser(alice);
-    expect((await h.rows<{ r: boolean }>("select public.redeem_mfa_recovery_code('one-time-code') as r"))[0].r).toBe(false);
-  });
-
-  it("rejects wrong codes and someone else's code, leaving the factors alone", async () => {
-    await h.asOwner();
-    await factor(alice);
-    await factor(bob);
-    await giveCodes(bob, ["bobs-code-1234"]);
-    await h.asUser(alice);
-    expect((await h.rows<{ r: boolean }>("select public.redeem_mfa_recovery_code('bobs-code-1234') as r"))[0].r).toBe(false);
-    expect((await h.rows<{ r: boolean }>("select public.redeem_mfa_recovery_code('') as r"))[0].r).toBe(false);
-    expect((await h.rows<{ r: boolean }>("select public.redeem_mfa_recovery_code(null) as r"))[0].r).toBe(false);
-    await h.asOwner();
-    expect(await h.rows("select * from auth.mfa_factors")).toHaveLength(2);
-  });
-
-  it("locks out guessing after five wrong codes in an hour, even for the right code", async () => {
-    await h.asOwner();
-    await factor(alice);
-    await giveCodes(alice, ["the-right-code"]);
-    await h.asUser(alice);
-    for (let i = 0; i < 5; i++) await h.db.query("select public.redeem_mfa_recovery_code($1)", [`wrong-${i}`]);
-    expect(await h.failure("select public.redeem_mfa_recovery_code('the-right-code')")).toMatch(/too many attempts/i);
-    await h.asOwner();
-    expect(await h.rows("select * from auth.mfa_factors where user_id = $1", [alice])).toHaveLength(1);
-  });
-
-  it("does not let a member read or write the attempt log", async () => {
-    await h.asUser(alice);
-    expect(await h.failure("select * from public.mfa_recovery_attempts")).toMatch(/permission denied/i);
-    expect(await h.failure("insert into public.mfa_recovery_attempts (user_id) values ($1)", [alice])).toMatch(/permission denied/i);
+  it("never stores a code, and offers no way to read one", async () => {
+    const columns = await h.rows<{ column_name: string }>(
+      "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'two_factor_events'",
+    );
+    expect(columns.map((c) => c.column_name).sort()).toEqual(["at", "id", "kind", "user_id"]);
   });
 });
 
@@ -315,10 +244,10 @@ describe("retention", () => {
     await h.db.query("update public.notifications set read_at = now() - interval '1 day' where actor_id = $1", [carol]);
     await h.db.query("insert into public.notifications (recipient_id, actor_id, type) values ($1, $2, 'mention')", [alice, bob]);
     await h.db.query("insert into public.audit_logs (action, created_at) values ('old', now() - interval '800 days'), ('recent', now())");
-    await h.db.query("insert into public.mfa_recovery_attempts (user_id, attempted_at) values ($1, now() - interval '3 days'), ($1, now())", [alice]);
+    await h.db.query("insert into public.two_factor_events (user_id, kind, at) values ($1, 'send', now() - interval '3 days'), ($1, 'send', now())", [alice]);
 
     const [{ result }] = await h.rows<{ result: Record<string, number> }>("select private.run_retention_purge() as result");
-    expect(result).toMatchObject({ read_notifications: 1, audit_logs: 1, recovery_attempts: 1 });
+    expect(result).toMatchObject({ read_notifications: 1, audit_logs: 1, two_factor_events: 1 });
     const left = await h.rows<{ actor_id: string; read_at: string | null }>("select actor_id, read_at from public.notifications order by actor_id");
     // Kept: the two recently read ones (Carol's) and Alice's unread mention.
     expect(left).toHaveLength(3);

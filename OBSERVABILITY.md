@@ -7,10 +7,10 @@ Everything here is optional and fail-soft: a missing variable turns the feature 
 | Need | State |
 | --- | --- |
 | Error reporting | Sentry is integrated and **off** until `NEXT_PUBLIC_SENTRY_DSN` is set. Events pass through `scrubEvent`: no cookies, request bodies, query strings, authorization headers or secrets; only an opaque member id; console breadcrumbs dropped. Session Replay and user feedback are off. Server actions report with `reportError(operation, error)` (operation name and database error code only). |
-| Rate limits | Upstash-backed sliding windows per verified member id, **off** until `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set, and then fail-open. Policies: post, comment, like, network, mfa, report, privacy, search, api, email. The database enforces its own hard hourly limits regardless (20 posts, 60 comments, 30 connection requests, 100 follows, 10 reports, 5 wrong recovery codes). |
+| Rate limits | Upstash-backed sliding windows per verified member id, **off** until `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set, and then fail-open. Policies: post, comment, like, network, mfa, report, privacy, search, api, email. The database enforces its own hard hourly limits regardless (20 posts, 60 comments, 30 connection requests, 100 follows, 10 reports, 5 wrong email codes per 15 minutes, 5 codes an hour). |
 | Health | `GET /api/health`: `{"status":"ok","environment":…,"services":{…booleans}}`. No secrets, no counts, no member data. |
-| Logs | The application writes no `console.*` output. Hosting logs (Netlify) hold request metadata. Do not add logging of request bodies, form values, post or comment text, emails, tokens, recovery codes or authenticator secrets. |
-| Audit trail | Staff actions and security events (recovery code used, account deleted, retention changed) go to `audit_logs`: append-only, ids and decisions only. |
+| Logs | The application writes no `console.*` output. Hosting logs (Netlify) hold request metadata. Do not add logging of request bodies, form values, post or comment text, emails, tokens, email sign-in codes or the signing secret. |
+| Audit trail | Staff actions and security events (account deleted, retention changed) go to `audit_logs`: append-only, ids and decisions only. |
 
 ## Turn on Sentry (when you have credentials)
 
@@ -24,7 +24,7 @@ Everything here is optional and fail-soft: a missing variable turns the feature 
 - New issue in production: notify the on-call person immediately.
 - Issue regressed (resolved then seen again).
 - Error rate above 2% of requests over 10 minutes.
-- Any event whose message contains `mfa.` or `reports.` or `moderate` (these are the safety-critical paths).
+- Any event whose message contains `two_factor` or `reports.` or `moderate` (these are the safety-critical paths).
 
 ## Uptime monitoring
 
@@ -37,7 +37,7 @@ Use any external monitor (UptimeRobot, Better Stack, Checkly...). It must not be
 
 ## Database and platform alerts (Supabase dashboard)
 
-- Auth: spikes in failed sign-ins and in MFA failures (Auth logs).
+- Auth: spikes in failed sign-ins, and in wrong email codes (rows in `two_factor_events` with kind `failure`).
 - Database: CPU above 80% for 10 minutes, connections near the plan limit, disk above 80%.
 - Advisors: run the Security and Performance advisors after every migration.
 - Enable PITR or daily backups (plan-dependent) and rehearse a restore.
@@ -49,7 +49,7 @@ Use any external monitor (UptimeRobot, Better Stack, Checkly...). It must not be
 
 ## Sensitive-information rules for logs and reports
 
-- Never log or report: passwords, session tokens, recovery codes, authenticator secrets, email addresses, post or comment text, report details, or appeal text.
+- Never log or report: passwords, session tokens, email sign-in codes, the `TWO_FACTOR_SECRET`, email addresses, post or comment text, report details, or appeal text.
 - Server errors: pass the operation name and the database error **code**, not the message, to `reportError`.
 - New Sentry tags or contexts must be ids or enumerated values only.
 - If a secret is ever pasted into chat, a ticket or a log, treat it as exposed: revoke it and issue a new one.

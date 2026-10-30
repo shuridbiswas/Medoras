@@ -32,7 +32,7 @@ export default function ReauthPage({ searchParams }: Props) {
 }
 
 async function ReauthContent({ searchParams }: Props) {
-  await requireUser({ mfa: "allow-enrollment" });
+  await requireUser();
   const raw = (await searchParams).next;
   return <ReauthForm next={safeNextPath(Array.isArray(raw) ? raw[0] : raw, "/settings/security")} />;
 }

@@ -15,12 +15,6 @@ export const supabaseStubs = `
     email text,
     raw_user_meta_data jsonb not null default '{}'
   );
-  create table auth.mfa_factors (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid not null references auth.users (id) on delete cascade,
-    factor_type text not null default 'totp',
-    status text not null default 'verified'
-  );
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
   $$;
@@ -29,7 +23,6 @@ export const supabaseStubs = `
   $$;
   grant usage on schema auth to anon, authenticated;
   revoke all on auth.users from anon, authenticated;
-  revoke all on auth.mfa_factors from anon, authenticated;
   create schema storage;
   create table storage.buckets (
     id text primary key, name text, public boolean,
@@ -130,11 +123,9 @@ export async function createHarness() {
       alter table public.audit_logs disable trigger audit_logs_append_only;
       delete from public.audit_logs;
       alter table public.audit_logs enable trigger audit_logs_append_only;
-      delete from public.mfa_recovery_codes;
-      delete from public.mfa_recovery_attempts;
+      delete from public.two_factor_events;
       delete from public.consent_records;
       delete from public.data_requests;
-      delete from auth.mfa_factors;
       update public.profiles set profile_visibility = 'members', directory_listed = true;
       delete from public.profile_education;
       delete from public.profile_skills;

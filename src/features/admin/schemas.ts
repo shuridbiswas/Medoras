@@ -30,7 +30,7 @@ export const appealDecisionSchema = z.object({
 });
 
 export const retentionSchema = z.object({
-  key: z.enum(["read_notifications", "resolved_reports", "audit_logs", "recovery_attempts", "completed_data_requests"]),
+  key: z.enum(["read_notifications", "resolved_reports", "audit_logs", "two_factor_events", "completed_data_requests"]),
   days: z.coerce.number().int("Use a whole number of days.").min(1, "Use at least 1 day.").max(3650, "Use 3,650 days or fewer."),
 });
 

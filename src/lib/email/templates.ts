@@ -71,28 +71,12 @@ Connect. Learn. Grow. Belong.`,
   };
 }
 
-export type SecurityEvent =
-  | "password_changed"
-  | "mfa_added"
-  | "mfa_removed"
-  | "mfa_recovery_used";
+export type SecurityEvent = "password_changed";
 
 const SECURITY_COPY: Record<SecurityEvent, { subject: string; line: string }> = {
   password_changed: {
     subject: "Your Medyra password was changed",
     line: "The password for your Medyra account was just changed, and your other devices were signed out.",
-  },
-  mfa_added: {
-    subject: "An authenticator app was added to your Medyra account",
-    line: "An authenticator app was just added to your Medyra account as a second sign-in step.",
-  },
-  mfa_removed: {
-    subject: "An authenticator app was removed from your Medyra account",
-    line: "An authenticator app was just removed from your Medyra account.",
-  },
-  mfa_recovery_used: {
-    subject: "A recovery code was used on your Medyra account",
-    line: "A recovery code was just used to reset the authenticator on your Medyra account.",
   },
 };
 
@@ -160,5 +144,28 @@ export function connectionNotificationEmail(input: {
       footer: `You can turn these emails off in <a href="${escapeHtml(settings)}" style="color:${MAROON};">Settings</a>.<br>`,
     }),
     text: `Hi ${first}, ${requester} would like to connect with you on Medyra.\n\nOpen Medyra: ${url}\n\nTurn these emails off in Settings: ${settings}`,
+  };
+}
+
+/** The 6-digit sign-in code. Short-lived, single purpose, and says what to do if it was not you. */
+export function twoFactorCodeEmail(input: { firstName: string; code: string; minutes: number }): EmailMessage {
+  const first = name(input.firstName);
+  const code = input.code.replace(/[^0-9]/g, "");
+  return {
+    subject: `Your Medyra sign-in code: ${code}`,
+    html: layout({
+      preheader: `Your Medyra sign-in code is ${code}.`,
+      heading: "Confirm it's you",
+      body: `<p style="margin:0 0 12px;">Hi ${escapeHtml(first)},</p>
+<p style="margin:0 0 12px;">Enter this code to finish signing in to Medyra:</p>
+<p style="margin:0 0 16px;font-size:32px;font-weight:700;letter-spacing:6px;color:${MAROON};">${escapeHtml(code)}</p>
+<p style="margin:0 0 12px;">It works for ${input.minutes} minutes and only once. Medyra will never ask you for this code by phone, chat or email.</p>
+<p style="margin:0;"><strong>Didn't try to sign in?</strong> Someone may know your password. Reset it right away and ignore this code.</p>${button("Reset my password", `${siteUrl()}/forgot-password`)}`,
+    }),
+    text: `Hi ${first},
+
+Your Medyra sign-in code is ${code}. It works for ${input.minutes} minutes and only once. Medyra will never ask you for this code by phone, chat or email.
+
+Didn't try to sign in? Someone may know your password. Reset it right away: ${siteUrl()}/forgot-password`,
   };
 }

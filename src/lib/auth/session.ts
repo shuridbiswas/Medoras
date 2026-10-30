@@ -8,8 +8,9 @@ import {
   evaluateMfa,
   isRecentSignIn,
   mfaMode,
-  type MfaState,
+  type TwoFactorState,
 } from "@/lib/auth/mfa";
+import { isTwoFactorConfigured, isVerified } from "@/lib/auth/two-factor";
 import type {
   OnboardingPreferencesRow,
   ProfileRow,
@@ -53,40 +54,42 @@ export const getPreferences = cache(
   },
 );
 
-/**
- * What the session has proven about a second factor. Read from the Supabase session (no extra
- * round trip). If it cannot be read, this throws: failing closed is safer than skipping MFA.
- */
-export const getMfaState = cache(async (): Promise<MfaState> => {
+/** The id of this sign-in session (from the verified token). Null if it cannot be read. */
+export const getSessionId = cache(async (): Promise<string | null> => {
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (error || !data) throw new Error("mfa_state_unavailable");
-  return {
-    enrolled: data.nextLevel === "aal2",
-    level: data.currentLevel === "aal2" ? "aal2" : "aal1",
-  };
+  const { data, error } = await supabase.auth.getClaims();
+  const id = data?.claims?.session_id;
+  return !error && typeof id === "string" ? id : null;
 });
 
 /**
- * How strictly a page applies MFA:
- *   "enforce"          challenge enrolled members, and send members without a factor to set one up
- *   "allow-enrollment" challenge enrolled members, but let members without a factor in (the setup page)
- *   "skip"             no MFA check (the challenge page itself)
+ * Whether this sign-in session has been confirmed with an emailed code. When email codes are not
+ * set up the step is not offered (`configured: false`). If the session id cannot be read this
+ * throws: failing closed is safer than skipping the step.
  */
-export type MfaOption = "enforce" | "allow-enrollment" | "skip";
+export const getTwoFactorState = cache(async (userId: string): Promise<TwoFactorState> => {
+  if (!isTwoFactorConfigured()) return { configured: false, verified: false };
+  const sessionId = await getSessionId();
+  if (!sessionId) throw new Error("two_factor_state_unavailable");
+  return { configured: true, verified: await isVerified(userId, sessionId) };
+});
 
-/** Requires a signed-in member with a verified email (and, per MFA_ENFORCEMENT, a second factor). */
+/**
+ * How strictly a page applies the emailed-code step:
+ *   "enforce"  the member must have confirmed this sign-in with a code (the default)
+ *   "skip"     no check (the code page itself)
+ */
+export type MfaOption = "enforce" | "skip";
+
+/** Requires a signed-in member with a verified email (and, per MFA_ENFORCEMENT, a confirmed sign-in). */
 export async function requireUser(options: { mfa?: MfaOption } = {}): Promise<User> {
   const user = await getUser();
   if (!user) redirect("/login");
   if (!user.email_confirmed_at) redirect("/login?error=verify_email");
 
-  const option = options.mfa ?? "enforce";
   const mode = mfaMode();
-  if (option !== "skip" && mode !== "off") {
-    const gate = evaluateMfa(mode, await getMfaState());
-    if (gate === "challenge") redirect("/mfa/verify");
-    if (gate === "enroll" && option === "enforce") redirect("/settings/security?setup=1");
+  if ((options.mfa ?? "enforce") !== "skip" && mode !== "off") {
+    if (evaluateMfa(mode, await getTwoFactorState(user.id)) === "challenge") redirect("/mfa/verify");
   }
   return user;
 }
@@ -141,11 +144,12 @@ export function requireRecentAuth(user: Pick<User, "last_sign_in_at">, returnTo:
 }
 
 /**
- * Administrators only. Anyone else gets a plain 404 (the admin area does not announce itself),
- * and an administrator must always have passed a second factor, whatever MFA_ENFORCEMENT says.
+ * Administrators only. Anyone else gets a plain 404 (the admin area does not announce itself).
+ * An administrator must always have confirmed this sign-in with an emailed code, whatever
+ * MFA_ENFORCEMENT says; if email codes are not set up the admin area stays closed.
  */
 export async function requireAdmin() {
-  const { user, profile } = await requireMember({ mfa: "allow-enrollment" });
+  const { user, profile } = await requireMember();
   const supabase = await createClient();
   const { data } = await supabase
     .from("staff_roles")
@@ -154,9 +158,8 @@ export async function requireAdmin() {
     .maybeSingle();
   if (data?.role !== "admin") notFound();
 
-  const state = await getMfaState();
-  if (!state.enrolled) redirect("/settings/security?setup=1");
-  if (state.level !== "aal2") redirect("/mfa/verify");
+  if (!isTwoFactorConfigured()) redirect("/settings/security?admin_2fa=unavailable");
+  if (!(await getTwoFactorState(user.id)).verified) redirect("/mfa/verify");
   return { user, profile };
 }
 
