@@ -4,7 +4,7 @@
  *   npm run seed:verify
  */
 import { memberClient, readAccounts, signIn } from "./api.ts";
-import { buildPlan, HEAVY_POSTER } from "./plan.ts";
+import { buildPlan, describePlan, HEAVY_POSTER } from "./plan.ts";
 import { assertDevOnly, loadEnvironment, requireManagementToken, SeedSafetyError } from "./safety.ts";
 import { COUNT_SQL, managementQuery } from "./sql.ts";
 
@@ -16,35 +16,65 @@ function check(name: string, ok: boolean, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok ? "" : `  -> ${detail}`}`);
 }
 
+const OTHER_MEMBER = "sarah_mitchell";
+
 async function main() {
   const env = loadEnvironment();
   const target = assertDevOnly(env);
   const token = requireManagementToken(env);
   const plan = buildPlan();
+  const summary = describePlan(plan);
 
   // --- 1. counts match the plan -------------------------------------------------------------
   const [counts] = await managementQuery<Record<string, number>[]>(target.ref, token, COUNT_SQL);
   const expected = {
     accounts: plan.members.length,
-    completed_profiles: plan.members.filter((m) => m.complete).length,
-    incomplete_profiles: plan.members.filter((m) => !m.complete).length,
-    education: plan.members.reduce((n, m) => n + m.education.length, 0),
-    experience: plan.members.reduce((n, m) => n + m.experience.length, 0),
-    tags: plan.members.reduce((n, m) => n + m.tags.length, 0),
+    completed_profiles: summary.completed,
+    incomplete_profiles: summary.incomplete,
+    education: summary.education,
+    experience: summary.experience,
+    tags: summary.tags,
     posts: plan.posts.length,
     comments: plan.comments.length,
     likes: plan.likes.length,
-    images: plan.members.filter((m) => m.avatar).length + plan.members.filter((m) => m.cover).length,
+    connections: plan.connections.length,
+    accepted_connections: summary.acceptedConnections,
+    follows: plan.follows.length,
+    images: summary.avatars + summary.covers,
   };
   for (const [key, value] of Object.entries(expected)) {
     check(`${key}: database ${counts[key]} = plan ${value}`, counts[key] === value, `got ${counts[key]}`);
   }
+  const [questions] = await managementQuery<{ n: number }[]>(
+    target.ref,
+    token,
+    `select count(*)::int as n from public.posts p join auth.users u on u.id = p.author_id
+      where u.email like 'seed+%@example.com' and p.category = 'questions'`,
+  );
+  check(`questions: database ${questions.n} = plan ${summary.questions}`, questions.n === summary.questions);
 
-  // --- 2. permissions as two seeded members ---------------------------------------------------
+  // --- 2. integrity: orphans and duplicates --------------------------------------------------
+  const [integrity] = await managementQuery<Record<string, number>[]>(
+    target.ref,
+    token,
+    `select
+      (select count(*) from public.post_comments c left join public.posts p on p.id = c.post_id where p.id is null)::int as orphan_comments,
+      (select count(*) from public.post_likes l left join public.posts p on p.id = l.post_id where p.id is null)::int as orphan_likes,
+      (select count(*) from public.posts p left join public.profiles f on f.id = p.author_id where f.id is null)::int as orphan_posts,
+      (select count(*) from public.profile_skills s left join public.profiles f on f.id = s.profile_id where f.id is null)::int as orphan_skills,
+      (select count(*) from public.connections c left join public.profiles f on f.id = c.addressee_id where f.id is null)::int as orphan_connections,
+      (select count(*) from storage.objects o left join auth.users u on (storage.foldername(o.name))[1] = u.id::text
+        where o.bucket_id in ('avatars','covers') and u.id is null)::int as orphan_images,
+      (select count(*) - count(distinct lower(username)) from public.profiles where username is not null)::int as duplicate_usernames,
+      (select count(*) from public.posts where created_at > now())::int as future_posts`,
+  );
+  for (const [key, value] of Object.entries(integrity)) check(`${key} = 0`, value === 0, `got ${value}`);
+
+  // --- 3. permissions as two seeded members ---------------------------------------------------
   const file = readAccounts(target.ref);
   const find = (slug: string) => file.accounts.find((a) => a.slug === slug);
   const aAccount = find(HEAVY_POSTER);
-  const bAccount = find("jose_nunez");
+  const bAccount = find(OTHER_MEMBER);
   if (!aAccount || !bAccount) throw new Error("accounts.json does not contain the verification accounts. Run seed:dev first.");
   const aSession = await signIn(target, aAccount.email, aAccount.password);
   const bSession = await signIn(target, bAccount.email, bAccount.password);
@@ -59,7 +89,7 @@ async function main() {
     params: { author_id: `eq.${aSession.id}`, select: "id", limit: "1" },
     prefer: "count=exact",
   });
-  check("B sees all of A's posts", countOf(seen.headers) === aPosts.length, `count ${countOf(seen.headers)}`);
+  check("B reads all of A's posts", countOf(seen.headers) === aPosts.length, `count ${countOf(seen.headers)}`);
 
   const target1 = aPosts[0];
   const upd = await B.rest<unknown[]>("PATCH", "posts", {
@@ -77,7 +107,7 @@ async function main() {
     body: { author_id: aSession.id, category: "questions", body: "spoof" },
   });
   check("B cannot publish as A", spoof.status === 401 || spoof.status === 403, `HTTP ${spoof.status}`);
-  const delComment = plan.comments.find((c) => c.authorSlug !== "jose_nunez");
+  const delComment = plan.comments.find((c) => c.authorSlug !== OTHER_MEMBER);
   if (delComment) {
     const r = await B.rest<unknown[]>("DELETE", "post_comments", {
       params: { id: `eq.${delComment.id}` },
@@ -85,7 +115,12 @@ async function main() {
     });
     check("B cannot delete someone else's comment (0 rows)", r.status === 200 && r.json.length === 0);
   }
+  const stillThere = await A.rest<{ body: string }[]>("GET", "posts", {
+    params: { id: `eq.${target1.id}`, select: "body" },
+  });
+  check("A's post is unchanged after B's attempts", stillThere.json[0]?.body === target1.body);
 
+  // Incomplete profiles are hidden until onboarding is done.
   const incomplete = plan.members.filter((m) => !m.complete).map((m) => m.email);
   const incompleteIds = await managementQuery<{ id: string }[]>(
     target.ref,
@@ -99,7 +134,30 @@ async function main() {
   const listed = await B.rest<{ id: string }[]>("GET", "profiles", {
     params: { select: "id", onboarding_completed: "eq.false" },
   });
-  check("B can't list any incomplete profile", listed.status === 200 && listed.json.length === 0, `${listed.json.length} visible`);
+  check("B cannot list any incomplete profile", listed.status === 200 && listed.json.length === 0, `${listed.json.length} visible`);
+
+  // Anonymous access is blocked.
+  for (const table of ["profiles", "posts", "post_comments", "post_likes", "connections", "follows"]) {
+    const response = await fetch(`${target.url}/rest/v1/${table}?select=*&limit=1`, {
+      headers: { apikey: target.publishableKey, Authorization: `Bearer ${target.publishableKey}` },
+    });
+    const body = (await response.json().catch(() => null)) as unknown;
+    check(`anonymous cannot read ${table}`, response.status >= 400 || (Array.isArray(body) && body.length === 0), `HTTP ${response.status}`);
+  }
+
+  // Pending connections are private to the two people.
+  const visibleConnections = await B.rest<{ requester_id: string; addressee_id: string; status: string }[]>("GET", "connections", {
+    params: { select: "requester_id,addressee_id,status", limit: "1000" },
+  });
+  const leaked = visibleConnections.json.filter(
+    (c) => c.status === "pending" && c.requester_id !== bSession.id && c.addressee_id !== bSession.id,
+  );
+  check("B sees no pending connections between other members", visibleConnections.status === 200 && leaked.length === 0, `${leaked.length} leaked`);
+  check(
+    "B sees the accepted connections",
+    visibleConnections.json.filter((c) => c.status === "accepted").length === summary.acceptedConnections,
+    `${visibleConnections.json.filter((c) => c.status === "accepted").length} accepted visible`,
+  );
 
   // --- keyset pagination exactly as the app does it ------------------------------------------
   const ids: string[] = [];
@@ -122,14 +180,14 @@ async function main() {
     cursor = r.json[r.json.length - 1];
   }
   check(
-    `pagination: pages of ${sizes.join(", ")} cover all ${aPosts.length} posts`,
+    `pagination: pages of ${sizes.join(", ")} cover all ${aPosts.length} posts without duplicates`,
     ids.length === aPosts.length && new Set(ids).size === ids.length && sizes.slice(0, -1).every((s) => s === 15),
     `${ids.length} ids, ${new Set(ids).size} unique`,
   );
 
   // --- counts on a post match the plan --------------------------------------------------------
   const engaged = plan.posts.find(
-    (p) => plan.likes.some((l) => l.postId === p.id) && plan.comments.some((c) => c.postId === p.id),
+    (p) => plan.likes.filter((l) => l.postId === p.id).length >= 5 && plan.comments.some((c) => c.postId === p.id),
   )!;
   const counts2 = await B.rest<{ likes: { count: number }[]; comments: { count: number }[] }[]>("GET", "posts", {
     params: { id: `eq.${engaged.id}`, select: "likes:post_likes(count),comments:post_comments(count)" },
@@ -141,19 +199,30 @@ async function main() {
     JSON.stringify(counts2.json),
   );
 
-  // --- search ---------------------------------------------------------------------------------
-  const byName = await B.rest<{ username: string }[]>("GET", "profiles", {
-    params: { select: "username", or: "(username.ilike.%ngu%,first_name.ilike.%ngu%,last_name.ilike.%ngu%)", onboarding_completed: "eq.true" },
-  });
-  check("search by name finds Casey Nguyen", byName.json.some((p) => p.username === HEAVY_POSTER));
+  // --- search (same filters the app uses) -------------------------------------------------------
+  const searchName = async (term: string) =>
+    (
+      await B.rest<{ username: string }[]>("GET", "profiles", {
+        params: { select: "username", or: `(username.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%)`, onboarding_completed: "eq.true" },
+      })
+    ).json.map((p) => p.username);
+  check("search 'Lévesque' (with accent) finds Jonathan Lévesque", (await searchName("Lévesque")).includes("jonathan_levesque"));
+  check("search 'levesque' (without accent) finds him through the username", (await searchName("levesque")).includes("jonathan_levesque"));
+  check("search 'Ramírez' (accented first name) finds Sofía Ramírez", (await searchName("Ramírez")).includes("sofia_ramirez"));
+  check("search by first name 'Camille' finds the heavy poster", (await searchName("Camille")).includes(HEAVY_POSTER));
   const byField = await B.rest<{ username: string }[]>("GET", "profiles", {
     params: { select: "username", fields: "cs.{psychology}", onboarding_completed: "eq.true" },
   });
-  check("search by field finds psychology members", byField.json.length >= 4, `${byField.json.length} found`);
+  const psychologyExpected = plan.members.filter((m) => m.complete && m.fields.includes("psychology")).length;
+  check("search by field finds every psychology member", byField.json.length === psychologyExpected, `${byField.json.length} of ${psychologyExpected}`);
   const mentors = await B.rest<{ username: string }[]>("GET", "profiles", {
     params: { select: "username", open_to_mentor: "eq.true", onboarding_completed: "eq.true" },
   });
-  check("mentor filter finds the 8 members open to mentoring", mentors.json.length === 8, `${mentors.json.length} found`);
+  check(`mentor filter finds the ${summary.openToMentor} members open to mentoring`, mentors.json.length === summary.openToMentor, `${mentors.json.length} found`);
+  const montreal = await B.rest<{ username: string }[]>("GET", "profiles", {
+    params: { select: "username", location_label: "ilike.%Montréal%", onboarding_completed: "eq.true" },
+  });
+  check("location filter 'Montréal' finds Montréal members", montreal.json.length === plan.members.filter((m) => m.complete && m.cityKey === "Montréal").length, `${montreal.json.length}`);
 
   // --- images load ----------------------------------------------------------------------------
   const withAvatar = await A.rest<{ avatar_path: string | null }[]>("GET", "profiles", {

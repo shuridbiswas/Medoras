@@ -1,143 +1,252 @@
-// @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { buildPlan, HEAVY_POSTER, NON_POSTERS, SEED_VALUE, TARGETS, validatePlan } from "./plan.ts";
-import { BIO_SUFFIX } from "./content.ts";
-import { avatarPng, coverPng } from "./png.ts";
+import { FIELDS, MEMBER_TYPES } from "../../src/features/onboarding/options.ts";
+import { FEED_PAGE_SIZE, POST_CATEGORIES } from "../../src/features/feed/options.ts";
+import { EN } from "./content-en.ts";
+import { FR } from "./content-fr.ts";
+import { THEMES } from "./content-types.ts";
+import {
+  buildPlan, describePlan, FICTIONAL_MARKERS, HEAVY_POSTER, SEED_VALUE, TARGETS, validatePlan,
+} from "./plan.ts";
 import { exactLength } from "./prng.ts";
+import { avatarPng, coverPng } from "./png.ts";
 import { assertDevOnly, SeedSafetyError } from "./safety.ts";
 import { literal } from "./sql.ts";
+import { agreeFrench, similarity } from "./text.ts";
+import { isSeedEmail, parseKeepList } from "./wipe.ts";
 
-const NOW = new Date("2026-10-30T12:00:00.000Z");
+const NOW = new Date("2026-11-02T15:00:00.000Z");
 const plan = buildPlan(NOW);
+const summary = describePlan(plan);
+const DAY = 24 * 60 * 60 * 1000;
 
-describe("seed plan", () => {
-  it("passes every database-constraint check", () => {
+describe("generated Quebec plan", () => {
+  it("satisfies every database constraint", () => {
     expect(validatePlan(plan, NOW)).toEqual([]);
   });
 
-  it("is deterministic for a fixed seed and reference time, and changes with the seed", () => {
+  it("is deterministic for the same seed and clock", () => {
     expect(JSON.stringify(buildPlan(NOW))).toBe(JSON.stringify(plan));
     expect(JSON.stringify(buildPlan(NOW, SEED_VALUE + 1))).not.toBe(JSON.stringify(plan));
-  });
+  }, 60_000);
 
-  it("creates 30 members: 26 completed and 4 incomplete (hidden from others)", () => {
-    expect(plan.members).toHaveLength(30);
-    expect(plan.members.filter((m) => m.complete)).toHaveLength(26);
+  it("has 50 members: 46 complete, 4 incomplete without a username", () => {
+    expect(plan.members).toHaveLength(TARGETS.members);
+    expect(summary.completed).toBe(46);
     const incomplete = plan.members.filter((m) => !m.complete);
     expect(incomplete).toHaveLength(4);
-    expect(incomplete.every((m) => m.username === null && m.fields.length === 0)).toBe(true);
+    expect(incomplete.every((m) => m.username === null && m.bio === null)).toBe(true);
   });
 
-  it("only uses fictional example.com seed emails and valid unique usernames", () => {
-    for (const m of plan.members) expect(m.email).toMatch(/^seed\+[a-z0-9_]+@example\.com$/);
-    const names = plan.members.map((m) => m.username).filter(Boolean);
-    expect(new Set(names).size).toBe(names.length);
-  });
-
-  it("covers every member type, field, and career stage", () => {
-    const completed = plan.members.filter((m) => m.complete);
-    expect(new Set(completed.map((m) => m.memberType)).size).toBe(8);
-    expect(new Set(completed.flatMap((m) => m.fields)).size).toBe(11);
-    expect(new Set(completed.map((m) => m.careerStage)).size).toBe(6);
-  });
-
-  it("includes the requested edge cases", () => {
-    const by = (slug: string) => plan.members.find((m) => m.slug === slug)!;
-    expect(by("alexandrina_long").firstName.length + by("alexandrina_long").lastName.length).toBeGreaterThan(55);
-    expect(by("zoe_angstrom").firstName).toBe("Zoë");
-    expect(by("sage_n").bio).toBeNull();
-    expect(by("dana_okafor").bio).toHaveLength(1000);
-    expect(by("dana_okafor").bio!.endsWith(BIO_SUFFIX)).toBe(true);
-    expect(by("bruno_c").headline).toBeNull();
-    expect(plan.members.some((m) => m.complete && m.locationLabel === null)).toBe(true);
-    expect(plan.members.some((m) => m.complete && !m.avatar)).toBe(true);
-    for (const m of plan.members) if (m.bio) expect(m.bio.endsWith(BIO_SUFFIX)).toBe(true);
-  });
-
-  it("flags about eight mentors and gives avatars/covers to roughly 70% / 40%", () => {
-    const completed = plan.members.filter((m) => m.complete);
-    expect(completed.filter((m) => m.openToMentor)).toHaveLength(8);
-    const avatars = completed.filter((m) => m.avatar).length / completed.length;
-    const covers = completed.filter((m) => m.cover).length / completed.length;
-    expect(avatars).toBeGreaterThan(0.6);
-    expect(avatars).toBeLessThan(0.8);
-    expect(covers).toBeGreaterThan(0.3);
-    expect(covers).toBeLessThan(0.5);
-  });
-
-  it("creates 150 posts across all 7 categories with one heavy poster", () => {
-    expect(plan.posts).toHaveLength(TARGETS.posts);
-    expect(new Set(plan.posts.map((p) => p.category)).size).toBe(7);
-    const byAuthor = new Map<string, number>();
-    for (const p of plan.posts) byAuthor.set(p.authorSlug, (byAuthor.get(p.authorSlug) ?? 0) + 1);
-    expect(byAuthor.get(HEAVY_POSTER)).toBeGreaterThanOrEqual(45);
-    expect(Math.max(...[...byAuthor].filter(([s]) => s !== HEAVY_POSTER).map(([, n]) => n))).toBeLessThan(14);
-    // Members who never post, to test an empty Activity tab.
-    for (const slug of NON_POSTERS) expect(byAuthor.has(slug)).toBe(false);
-  });
-
-  it("includes long, multi-paragraph, escaping, edited, and generic-question posts", () => {
-    expect(plan.posts.some((p) => p.body.length === 3000)).toBe(true);
-    expect(plan.posts.filter((p) => p.body.includes("\n\n")).length).toBeGreaterThanOrEqual(6);
-    for (const needle of ["<b>not bold</b>", "<script>", "&", '"', "'", "😊", "<"]) {
-      expect(plan.posts.some((p) => p.body.includes(needle))).toBe(true);
+  it("follows the requested mix of roles and cities", () => {
+    expect(summary.byRole).toEqual({ student: 18, professional: 17, educator: 5, researcher: 5, independent: 5 });
+    expect(summary.byCity).toEqual({
+      "Montréal": 22, Laval: 6, Longueuil: 5, "Châteauguay": 3, Brossard: 3, Terrebonne: 2,
+      Repentigny: 2, "Saint-Jérôme": 2, "Vaudreuil-Dorion": 2, Sherbrooke: 1, "Québec": 2,
+    });
+    for (const m of plan.members.filter((x) => x.complete)) {
+      expect(m.country).toBe("CA");
+      expect(m.locationLabel).toMatch(/, QC$/);
     }
-    expect(plan.posts.filter((p) => p.editedAt).length).toBeGreaterThan(5);
-    const questions = plan.posts.filter((p) => p.category === "questions");
-    expect(questions.length).toBeGreaterThan(10);
-    expect(questions.every((p) => /no identifying details/i.test(p.body))).toBe(true);
   });
 
-  it("spreads posts over the last 30 days and never into the future", () => {
-    const oldest = Math.min(...plan.posts.map((p) => Date.parse(p.createdAt)));
-    const newest = Math.max(...plan.posts.map((p) => Date.parse(p.createdAt)));
-    expect(NOW.getTime() - oldest).toBeLessThanOrEqual(30 * 24 * 3_600_000);
-    expect(NOW.getTime() - oldest).toBeGreaterThan(20 * 24 * 3_600_000);
-    expect(newest).toBeLessThan(NOW.getTime());
+  it("uses only real enum values and keeps usernames unique, ASCII and unreserved", () => {
+    const fields = FIELDS.map((f) => f.value as string);
+    const types = MEMBER_TYPES.map((t) => t.value as string);
+    const names = new Set<string>();
+    for (const m of plan.members) {
+      expect(types).toContain(m.memberType);
+      m.fields.forEach((f) => expect(fields).toContain(f));
+      if (m.username) {
+        expect(m.username).toMatch(/^[a-z0-9_]{3,30}$/);
+        expect(names.has(m.username)).toBe(false);
+        names.add(m.username);
+      }
+    }
   });
 
-  it("creates about 250 comments and 500 likes with no duplicate likes", () => {
-    expect(plan.comments.length).toBeGreaterThanOrEqual(TARGETS.comments[0]);
-    expect(plan.comments.length).toBeLessThanOrEqual(TARGETS.comments[1]);
-    expect(plan.likes.length).toBeGreaterThanOrEqual(TARGETS.likes[0]);
-    expect(plan.likes.length).toBeLessThanOrEqual(TARGETS.likes[1]);
-    expect(new Set(plan.likes.map((l) => `${l.postId}:${l.userSlug}`)).size).toBe(plan.likes.length);
-    expect(plan.comments.filter((c) => c.body.length === 1000).length).toBeGreaterThanOrEqual(3);
-    // Some posts have no engagement at all.
-    const engaged = new Set([...plan.comments.map((c) => c.postId), ...plan.likes.map((l) => l.postId)]);
-    expect(plan.posts.some((p) => !engaged.has(p.id))).toBe(true);
-    // Comments per post stay between 1 and 12 where present.
+  it("has natural Quebec names, accent edge cases and a very long name", () => {
+    expect(plan.members.some((m) => /[éèêëàâîïôùûç]/i.test(`${m.firstName}${m.lastName}`))).toBe(true);
+    expect(plan.members.some((m) => `${m.firstName} ${m.lastName}`.length >= 50)).toBe(true);
+  });
+
+  it("marks every bio as fictional in the bio's own language", () => {
+    for (const m of plan.members.filter((x) => x.bio)) {
+      expect(FICTIONAL_MARKERS.some((mark) => m.bio!.endsWith(mark))).toBe(true);
+      expect(m.bio!.endsWith(m.lang === "fr" ? "(Profil fictif de test)" : "(Fictional test profile)")).toBe(true);
+    }
+    expect(plan.members.some((m) => m.bio?.length === 1000)).toBe(true);
+    expect(plan.members.some((m) => !m.bio && m.complete)).toBe(true);
+  });
+
+  it("has mentors, mentorship seekers, images and sections in realistic shares", () => {
+    expect(summary.openToMentor).toBeGreaterThanOrEqual(7);
+    expect(summary.openToMentor).toBeLessThanOrEqual(10);
+    expect(summary.lookingForMentorship).toBe(10);
+    expect(summary.avatars / 46).toBeGreaterThan(0.6);
+    expect(summary.avatars / 46).toBeLessThan(0.78);
+    expect(summary.covers / 46).toBeGreaterThan(0.3);
+    expect(summary.covers / 46).toBeLessThan(0.45);
+    for (const m of plan.members.filter((x) => x.complete)) {
+      expect(m.tags.length).toBeGreaterThanOrEqual(3);
+      expect(m.education.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("uses real institutions only as context and never invents licence or employee numbers", () => {
+    const text = JSON.stringify(plan.members);
+    expect(text).toMatch(/Université de Montréal/);
+    expect(text).toMatch(/CHUM/);
+    expect(text).not.toMatch(/licen[cs]e? ?(no|number|#)|permis n|employee id|matricule/i);
+  });
+});
+
+describe("posts, comments and likes", () => {
+  it("creates 250 posts over all seven categories, 70 of them questions", () => {
+    expect(plan.posts).toHaveLength(250);
+    expect(summary.questions).toBe(70);
+    for (const c of POST_CATEGORIES) expect(summary.postsByCategory[c.value] ?? 0).toBeGreaterThan(0);
+    expect(Object.keys(summary.postsByCategory)).toHaveLength(7);
+  });
+
+  it("keeps the language split within 3 points of 65/35 for posts and comments", () => {
+    for (const [counts, total] of [[summary.postsByLanguage, plan.posts.length], [summary.commentsByLanguage, plan.comments.length]] as const) {
+      expect(Math.abs(counts.fr / total - 0.65)).toBeLessThanOrEqual(0.03);
+      expect(Math.abs(counts.en / total - 0.35)).toBeLessThanOrEqual(0.03);
+    }
+  });
+
+  it("has a heavy poster that pages at 15, one 3000-character post and special-character posts", () => {
+    const heavy = plan.posts.filter((p) => p.authorSlug === HEAVY_POSTER);
+    expect(heavy.length).toBeGreaterThanOrEqual(45);
+    expect(Math.ceil(heavy.length / FEED_PAGE_SIZE)).toBeGreaterThanOrEqual(4);
+    expect(plan.posts.filter((p) => p.body.length === 3000)).toHaveLength(1);
+    expect(plan.posts.filter((p) => /[<>]/.test(p.body) && /&/.test(p.body) && /["'«]/.test(p.body)).length).toBeGreaterThanOrEqual(3);
+    expect(plan.posts.some((p) => /\p{Extended_Pictographic}/u.test(p.body))).toBe(true);
+    expect(plan.posts.some((p) => p.editedAt)).toBe(true);
+    expect(plan.posts.some((p) => p.body.length < 100)).toBe(true);
+    expect(plan.posts.some((p) => p.body.length > 800)).toBe(true);
+  });
+
+  it("spreads activity over the last 120 days and keeps comments and likes after their posts", () => {
+    const times = plan.posts.map((p) => Date.parse(p.createdAt));
+    expect((NOW.getTime() - Math.min(...times)) / DAY).toBeGreaterThan(100);
+    expect((NOW.getTime() - Math.min(...times)) / DAY).toBeLessThanOrEqual(121);
+    expect((NOW.getTime() - Math.max(...times)) / DAY).toBeLessThan(10);
+    const born = plan.members.filter((m) => m.complete).map((m) => (NOW.getTime() - Date.parse(m.profileCreatedAt)) / DAY);
+    expect(Math.max(...born) - Math.min(...born)).toBeGreaterThan(60);
+    const postsBy = new Set(plan.posts.map((p) => p.authorSlug));
+    expect(postsBy.size).toBeLessThan(46); // some members are inactive
+  });
+
+  it("has 400 comments up to 1000 characters, with some at exactly 1000 and uneven threads", () => {
+    expect(plan.comments).toHaveLength(400);
+    expect(plan.comments.some((c) => c.body.length === 1000)).toBe(true);
+    expect(Math.max(...plan.comments.map((c) => c.body.length))).toBeLessThanOrEqual(1000);
     const perPost = new Map<string, number>();
     for (const c of plan.comments) perPost.set(c.postId, (perPost.get(c.postId) ?? 0) + 1);
-    expect(Math.max(...perPost.values())).toBeLessThanOrEqual(30);
+    expect(Math.max(...perPost.values())).toBeGreaterThanOrEqual(8);
+    expect(Math.max(...perPost.values())).toBeLessThanOrEqual(12);
+    expect(perPost.size).toBeLessThan(plan.posts.length); // some posts have none
+  });
+
+  it("has 600 unique likes, uneven: some posts with none, some with ten or more", () => {
+    expect(plan.likes).toHaveLength(600);
+    expect(new Set(plan.likes.map((l) => `${l.postId}:${l.userSlug}`)).size).toBe(600);
+    const perPost = new Map<string, number>();
+    for (const l of plan.likes) perPost.set(l.postId, (perPost.get(l.postId) ?? 0) + 1);
+    expect(plan.posts.some((p) => !perPost.has(p.id))).toBe(true);
+    expect(Math.max(...perPost.values())).toBeGreaterThanOrEqual(10);
+    for (const l of plan.likes) expect(plan.posts.find((p) => p.id === l.postId)!.authorSlug).not.toBe(l.userSlug);
+  });
+
+  it("has no duplicate post or comment bodies", () => {
+    for (const list of [plan.posts.map((p) => p.body), plan.comments.map((c) => c.body)]) {
+      expect(new Set(list).size).toBe(list.length);
+    }
+  });
+
+  it("has no near-duplicate posts or comments (shared word trigrams)", () => {
+    const worst = (texts: string[]) => {
+      let max = 0;
+      for (let i = 0; i < texts.length; i++) {
+        for (let j = i + 1; j < texts.length; j++) max = Math.max(max, similarity(texts[i], texts[j]));
+      }
+      return max;
+    };
+    expect(worst(plan.posts.map((p) => p.body))).toBeLessThan(0.6);
+    expect(worst(plan.comments.map((c) => c.body))).toBeLessThan(0.6);
   });
 
   it("contains no email addresses, phone numbers or links in any text", () => {
     const text = [
-      ...plan.members.flatMap((m) => [m.bio, m.headline, m.journey, m.aspirations, m.locationLabel ?? ""]),
+      ...plan.members.flatMap((m) => [m.bio, m.headline, m.journey, m.aspirations]),
       ...plan.posts.map((p) => p.body),
       ...plan.comments.map((c) => c.body),
     ].filter(Boolean) as string[];
     for (const t of text) {
       expect(t).not.toMatch(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
       expect(t).not.toMatch(/\b\d{3}[-. ]\d{3}[-. ]\d{4}\b/);
-      expect(t).not.toMatch(/https?:\/\//);
+      expect(t).not.toMatch(/https?:\/\/|www\./);
     }
   });
 
-  it("detects constraint violations when the plan is tampered with", () => {
+  it("writes natural Quebec French with correct accents and terms", () => {
+    const fr = plan.posts.filter((p) => p.lang === "fr").map((p) => p.body).join(" ");
+    for (const term of ["cégep", "stage", "baccalauréat", "maîtrise", "OIIQ"]) expect(fr.toLowerCase()).toContain(term.toLowerCase());
+    expect(fr).not.toMatch(/\bcegep\b|\bmaitrise\b|\bbaccalaureat\b/i);
+  });
+
+  it("adjusts French agreement to the fictional author", () => {
+    expect(agreeFrench("Je suis fière et fatiguée.", "m")).toBe("Je suis fier et fatigué.");
+    expect(agreeFrench("Je suis fier et content.", "f")).toBe("Je suis fière et contente.");
+    expect(agreeFrench("Bravo, tu peux en être fière. Je suis fière aussi.", "m", "f")).toBe("Bravo, tu peux en être fière. Je suis fier aussi.");
+  });
+});
+
+describe("network rows", () => {
+  it("has 40 connections (30 accepted, 10 pending) and 60 follows, all unique pairs", () => {
+    expect(summary.connections).toBe(40);
+    expect(summary.acceptedConnections).toBe(30);
+    expect(summary.follows).toBe(60);
+    expect(new Set(plan.connections.map((c) => [c.requesterSlug, c.addresseeSlug].sort().join("|"))).size).toBe(40);
+    expect(new Set(plan.follows.map((f) => `${f.followerSlug}|${f.followeeSlug}`)).size).toBe(60);
+  });
+
+  it("only involves completed members", () => {
+    const done = new Set(plan.members.filter((m) => m.complete).map((m) => m.slug));
+    for (const c of plan.connections) expect(done.has(c.requesterSlug) && done.has(c.addresseeSlug)).toBe(true);
+    for (const f of plan.follows) expect(done.has(f.followerSlug) && done.has(f.followeeSlug)).toBe(true);
+  });
+});
+
+describe("corpora", () => {
+  it("covers every theme in both languages with enough distinct sentences", () => {
+    for (const corpus of [FR, EN]) {
+      for (const theme of THEMES) {
+        const t = corpus.themes[theme];
+        for (const list of [t.s, t.d, t.c, t.q, t.r]) {
+          expect(list.length).toBeGreaterThanOrEqual(3);
+          expect(new Set(list).size).toBe(list.length);
+        }
+      }
+    }
+  });
+});
+
+describe("validation catches tampering", () => {
+  it("reports constraint violations", () => {
     const broken = structuredClone(plan);
     broken.members[0].username = "Bad Name";
+    broken.members[1].bio = "No marker here";
     broken.posts[0].body = "x".repeat(3001);
     broken.posts[1].category = "gossip";
     broken.likes.push({ ...broken.likes[0] });
-    broken.comments[0].authorSlug = "pending_riley";
+    broken.comments[0].authorSlug = "chloe_dubois";
+    broken.follows.push({ ...broken.follows[0] });
     const problems = validatePlan(broken, NOW);
-    expect(problems.some((p) => /username format/.test(p))).toBe(true);
-    expect(problems.some((p) => /body/.test(p))).toBe(true);
-    expect(problems.some((p) => /category/.test(p))).toBe(true);
-    expect(problems.some((p) => /duplicate/.test(p))).toBe(true);
-    expect(problems.some((p) => /not a completed member/.test(p))).toBe(true);
+    for (const pattern of [/username format/, /fictional-profile marker/, /body/, /category/, /duplicate/, /not a completed member/]) {
+      expect(problems.some((p) => pattern.test(p))).toBe(true);
+    }
   });
 });
 
@@ -165,6 +274,14 @@ describe("helpers", () => {
       expect(png.subarray(-8, -4).toString("ascii")).toBe("IEND");
       expect(png.length).toBeLessThan(max);
     }
+  });
+
+  it("parses the keep list and recognises seed emails", () => {
+    expect(parseKeepList(" A@x.com, b@y.com ,,")).toEqual(["a@x.com", "b@y.com"]);
+    expect(parseKeepList(undefined)).toEqual([]);
+    expect(isSeedEmail("seed+casey_ngu@example.com")).toBe(true);
+    expect(isSeedEmail("shurid.biswas@gmail.com")).toBe(false);
+    expect(isSeedEmail("seed+x@example.com.evil.io")).toBe(false);
   });
 });
 

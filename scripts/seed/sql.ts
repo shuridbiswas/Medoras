@@ -1,4 +1,4 @@
-import type { SeedComment, SeedLike, SeedPost } from "./plan.ts";
+import type { SeedComment, SeedConnection, SeedFollow, SeedLike, SeedMember, SeedPost } from "./plan.ts";
 
 /** SQL string helpers for the privileged content inserts (the Management API takes plain SQL). */
 
@@ -65,6 +65,65 @@ export function likeStatements(likes: SeedLike[], ids: IdMap): string[] {
   );
 }
 
+/** Different account ages: profiles.created_at is a public column, so it can be backdated here. */
+export function profileAgeStatements(members: SeedMember[], ids: IdMap): string[] {
+  return chunks(members, 25).map(
+    (batch) =>
+      `update public.profiles p set created_at = v.t from (values\n` +
+      batch.map((m) => `(${need(ids, m.slug)}::uuid, ${literal(m.profileCreatedAt)}::timestamptz)`).join(",\n") +
+      `\n) as v(id, t) where p.id = v.id;`,
+  );
+}
+
+export function connectionStatements(connections: SeedConnection[], ids: IdMap): string[] {
+  return chunks(connections, 25).map(
+    (batch) =>
+      `insert into public.connections (id, requester_id, addressee_id, status, created_at, accepted_at) values\n` +
+      batch
+        .map(
+          (c) =>
+            `(${literal(c.id)}, ${need(ids, c.requesterSlug)}, ${need(ids, c.addresseeSlug)}, ${literal(c.status)}, ` +
+            `${literal(c.createdAt)}, ${literal(c.acceptedAt)})`,
+        )
+        .join(",\n") +
+      `\non conflict do nothing;`,
+  );
+}
+
+export function followStatements(follows: SeedFollow[], ids: IdMap): string[] {
+  return chunks(follows, 50).map(
+    (batch) =>
+      `insert into public.follows (follower_id, followee_id, created_at) values\n` +
+      batch.map((f) => `(${need(ids, f.followerSlug)}, ${need(ids, f.followeeSlug)}, ${literal(f.createdAt)})`).join(",\n") +
+      `\non conflict do nothing;`,
+  );
+}
+
+/**
+ * The notification triggers fire on these inserts and stamp "now". Give each notification the time
+ * of the event it describes, and mark old ones read, so the inbox looks lived-in rather than new.
+ */
+export const TIDY_NOTIFICATIONS_SQL = `
+update public.notifications n
+   set created_at = c.created_at,
+       read_at = case when c.status = 'accepted' then coalesce(c.accepted_at, c.created_at) else n.read_at end
+  from public.connections c
+ where n.type = 'connection_request' and n.entity_id = c.id
+   and n.recipient_id in (select id from auth.users where email like 'seed+%@example.com');
+
+update public.notifications n
+   set created_at = t.first_at,
+       read_at = case when t.first_at < now() - interval '14 days' then t.first_at + interval '1 hour' else n.read_at end
+  from (
+    select n2.id, (select min(pc.created_at) from public.post_comments pc
+                    where pc.post_id = n2.entity_id and pc.author_id = n2.actor_id) as first_at
+      from public.notifications n2
+     where n2.type in ('post_comment', 'comment_reply')
+       and n2.recipient_id in (select id from auth.users where email like 'seed+%@example.com')
+  ) t
+ where n.id = t.id and t.first_at is not null;
+`;
+
 /** Management API: run SQL on the project with a scoped personal access token. */
 export async function managementQuery<T = unknown>(
   ref: string,
@@ -100,5 +159,8 @@ select
   (select count(*) from public.posts p join auth.users u on u.id = p.author_id where u.email like 'seed+%@example.com')::int as posts,
   (select count(*) from public.post_comments c join auth.users u on u.id = c.author_id where u.email like 'seed+%@example.com')::int as comments,
   (select count(*) from public.post_likes l join auth.users u on u.id = l.user_id where u.email like 'seed+%@example.com')::int as likes,
+  (select count(*) from public.connections c join auth.users u on u.id = c.requester_id where u.email like 'seed+%@example.com')::int as connections,
+  (select count(*) from public.connections c join auth.users u on u.id = c.requester_id where u.email like 'seed+%@example.com' and c.status = 'accepted')::int as accepted_connections,
+  (select count(*) from public.follows f join auth.users u on u.id = f.follower_id where u.email like 'seed+%@example.com')::int as follows,
   (select count(*) from storage.objects o join auth.users u on (storage.foldername(o.name))[1] = u.id::text where u.email like 'seed+%@example.com')::int as images
 `;

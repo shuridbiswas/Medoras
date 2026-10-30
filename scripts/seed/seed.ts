@@ -17,35 +17,16 @@ import {
   type Session,
   type StoredAccount,
 } from "./api.ts";
-import { buildPlan, validatePlan, type SeedMember } from "./plan.ts";
+import { buildPlan, describePlan, validatePlan, type SeedMember } from "./plan.ts";
 import { avatarPng, coverPng } from "./png.ts";
 import { assertDevOnly, loadEnvironment, requireManagementToken, SeedSafetyError } from "./safety.ts";
-import { COUNT_SQL, commentStatements, likeStatements, managementQuery, postStatements } from "./sql.ts";
+import {
+  COUNT_SQL, commentStatements, connectionStatements, followStatements, likeStatements, managementQuery,
+  postStatements, profileAgeStatements, TIDY_NOTIFICATIONS_SQL,
+} from "./sql.ts";
 
 const dryRun = process.argv.includes("--dry-run");
 const log = (message: string) => console.log(message);
-
-function summarize(plan: ReturnType<typeof buildPlan>) {
-  const completed = plan.members.filter((m) => m.complete);
-  const perAuthor = new Map<string, number>();
-  for (const p of plan.posts) perAuthor.set(p.authorSlug, (perAuthor.get(p.authorSlug) ?? 0) + 1);
-  const top = [...perAuthor].sort((a, b) => b[1] - a[1])[0];
-  return {
-    members: plan.members.length,
-    completed: completed.length,
-    incomplete: plan.members.length - completed.length,
-    mentors: completed.filter((m) => m.openToMentor).length,
-    avatars: plan.members.filter((m) => m.avatar).length,
-    covers: plan.members.filter((m) => m.cover).length,
-    education: plan.members.reduce((n, m) => n + m.education.length, 0),
-    experience: plan.members.reduce((n, m) => n + m.experience.length, 0),
-    tags: plan.members.reduce((n, m) => n + m.tags.length, 0),
-    posts: plan.posts.length,
-    heaviestPoster: `${top[0]} (${top[1]} posts)`,
-    comments: plan.comments.length,
-    likes: plan.likes.length,
-  };
-}
 
 async function main() {
   const env = loadEnvironment();
@@ -59,7 +40,7 @@ async function main() {
 
   log(`Target project: ${target.ref} (allowed by SEED_ALLOWED_PROJECT_REF)`);
   log("Plan:");
-  console.table(summarize(plan));
+  console.log(JSON.stringify(describePlan(plan), null, 2));
 
   if (dryRun) {
     log("\nDry run. Members that would be created (emails are fictional, passwords are generated at run time):");
@@ -67,6 +48,8 @@ async function main() {
       plan.members.map((m) => ({
         slug: m.slug,
         name: `${m.firstName} ${m.lastName}`.slice(0, 40),
+        lang: m.lang,
+        city: m.cityKey,
         type: m.memberType,
         fields: m.fields.join(","),
         complete: m.complete,
@@ -161,10 +144,14 @@ async function main() {
   log(`  uploaded ${imageCount} new images`);
 
   // ---------------------------------------------------------------------------- 3. content
-  log("\n3/4 Inserting backdated posts, comments and likes (privileged SQL, real account ids)…");
+  log("\n3/4 Inserting backdated posts, comments, likes and network rows (privileged SQL, real account ids)…");
+  for (const sql of profileAgeStatements(plan.members, ids)) await managementQuery(target.ref, token, sql);
   for (const sql of postStatements(plan.posts, ids)) await managementQuery(target.ref, token, sql);
   for (const sql of commentStatements(plan.comments, ids)) await managementQuery(target.ref, token, sql);
   for (const sql of likeStatements(plan.likes, ids)) await managementQuery(target.ref, token, sql);
+  for (const sql of connectionStatements(plan.connections, ids)) await managementQuery(target.ref, token, sql);
+  for (const sql of followStatements(plan.follows, ids)) await managementQuery(target.ref, token, sql);
+  await managementQuery(target.ref, token, TIDY_NOTIFICATIONS_SQL);
 
   // ---------------------------------------------------------------------------- 4. summary
   log("\n4/4 Row counts in the database for seed accounts:");
