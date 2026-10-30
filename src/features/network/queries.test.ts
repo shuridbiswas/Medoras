@@ -139,6 +139,7 @@ describe("searchDirectory", () => {
     await search({});
     const op = profilesOp();
     expect(filter(op, "onboarding_completed")).toBe(true);
+    expect(filter(op, "directory_listed")).toBe(true); // members who unlisted themselves stay out
     expect(filter(op, "id!=")).toBe(ME);
     expect(filter(op, "id not")).toBe(`(${A})`);
   });

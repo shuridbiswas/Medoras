@@ -27,6 +27,10 @@ const sendToMember = vi.fn(async () => ({ status: "skipped" as const, reason: "n
 vi.mock("@/lib/email/send", () => ({
   sendToMember: (...args: unknown[]) => (sendToMember as (...a: unknown[]) => unknown)(...args),
 }));
+const recordPolicyConsent = vi.fn(async () => undefined);
+vi.mock("@/features/privacy/actions", () => ({
+  recordPolicyConsent: (...args: unknown[]) => (recordPolicyConsent as (...a: unknown[]) => unknown)(...args),
+}));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => redirectMock(url),
 }));
@@ -64,6 +68,7 @@ const form = {
 };
 
 beforeEach(() => {
+  recordPolicyConsent.mockClear();
   calls.length = 0;
   profileError = null;
   pending = "ok";
@@ -90,6 +95,17 @@ describe("completeOnboarding", () => {
       country: "CA",
       onboarding_completed: true,
     });
+  });
+
+  it("records the member's acceptance of the policies for their own id once onboarding succeeds", async () => {
+    await redirectOf(() => completeOnboarding(idle, makeFormData(form)));
+    expect(recordPolicyConsent).toHaveBeenCalledTimes(1);
+    expect(recordPolicyConsent).toHaveBeenCalledWith("u1");
+  });
+
+  it("does not record consent when onboarding fails validation", async () => {
+    await completeOnboarding(idle, makeFormData({ ...form, institution: "" }));
+    expect(recordPolicyConsent).not.toHaveBeenCalled();
   });
 
   it("sends the welcome email to the member's own address after onboarding succeeds", async () => {

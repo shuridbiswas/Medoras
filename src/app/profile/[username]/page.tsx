@@ -27,7 +27,7 @@ import {
   listConnections,
 } from "@/features/network/queries";
 import { getProfileByUsername } from "@/features/profile/queries";
-import { toPublicProfile } from "@/features/profile/visibility";
+import { restrictToCard, toPublicProfile } from "@/features/profile/visibility";
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -65,18 +65,22 @@ async function ProfileContent({ params }: Props) {
   if (!data) notFound();
 
   const isOwner = data.profile.id === user.id;
-  const profile = toPublicProfile(data.profile);
+  const fullProfile = toPublicProfile(data.profile);
   const { education, experience, skills } = data;
-  const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ");
+  const name = [fullProfile.first_name, fullProfile.last_name].filter(Boolean).join(" ");
 
   const [counts, preview, relationship, blockedIds, muted] = await Promise.all([
-    getNetworkCounts(profile.id),
-    listConnections(profile.id, 1, 8),
-    isOwner ? Promise.resolve(null) : getRelationship(user.id, profile.id),
+    getNetworkCounts(fullProfile.id),
+    listConnections(fullProfile.id, 1, 8),
+    isOwner ? Promise.resolve(null) : getRelationship(user.id, fullProfile.id),
     isOwner ? Promise.resolve<string[]>([]) : getBlockedIds(user.id),
-    isOwner ? Promise.resolve(false) : isMuted(user.id, profile.id),
+    isOwner ? Promise.resolve(false) : isMuted(user.id, fullProfile.id),
   ]);
-  const blockedByMe = blockedIds.includes(profile.id);
+  const blockedByMe = blockedIds.includes(fullProfile.id);
+  // Members who limit details to connections show everyone else just their identity card.
+  const detailsHidden =
+    !isOwner && fullProfile.profile_visibility === "connections" && relationship?.state !== "connected";
+  const profile = detailsHidden ? restrictToCard(fullProfile) : fullProfile;
 
   const actions =
     isOwner || !relationship ? null : (

@@ -6,6 +6,7 @@ import { requireOnboardingPending } from "@/lib/auth/session";
 import { checkAvatar } from "@/features/onboarding/avatar";
 import { sendToMember } from "@/lib/email/send";
 import { welcomeEmail } from "@/lib/email/templates";
+import { recordPolicyConsent } from "@/features/privacy/actions";
 import {
   onboardingSchema,
   STEP_OF_FIELD,
@@ -131,6 +132,10 @@ export async function completeOnboarding(
   if (avatarPath && profile?.avatar_path) {
     await supabase.storage.from("avatars").remove([profile.avatar_path]);
   }
+
+  // Record which version of the terms, privacy policy and guidelines the member accepted
+  // (they ticked the box at sign-up). Best effort; never blocks onboarding.
+  await recordPolicyConsent(user.id);
 
   // Best effort: a failed or unconfigured email never blocks onboarding (sendToMember never throws).
   await sendToMember(

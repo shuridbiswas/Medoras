@@ -29,6 +29,7 @@ export const PUBLIC_PROFILE_FIELDS = [
   "specialty",
   "career_stage",
   "country",
+  "profile_visibility",
   "created_at",
 ] as const;
 
@@ -41,6 +42,24 @@ export function toPublicProfile(row: ProfileRow): PublicProfile {
   const out: Partial<Record<keyof PublicProfile, unknown>> = {};
   for (const key of PUBLIC_PROFILE_FIELDS) out[key] = row[key];
   return out as PublicProfile;
+}
+
+/**
+ * When a member limits their details to connections, everyone else sees the identity card only
+ * (name, username, photo, headline, role, fields, country). The long-form text is blanked here;
+ * education, experience and skills are hidden by the database itself.
+ */
+export function restrictToCard(profile: PublicProfile): PublicProfile {
+  return {
+    ...profile,
+    bio: null,
+    professional_journey: null,
+    career_aspirations: null,
+    institution: null,
+    qualification: null,
+    specialty: null,
+    location_label: null,
+  };
 }
 
 export const fullName = (p: Pick<PublicProfile, "first_name" | "last_name">) =>

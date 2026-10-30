@@ -125,6 +125,29 @@ async function SettingsContent() {
         </section>
 
         <section
+          aria-labelledby="security-privacy"
+          className="rounded-2xl border border-border bg-surface p-5 sm:p-7"
+        >
+          <h2 id="security-privacy" className="text-xl font-bold text-maroon-900">
+            Security and privacy
+          </h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li>
+              <Link href="/settings/security" className="font-medium text-maroon-700 underline underline-offset-2">
+                Account security
+              </Link>
+              <span className="text-muted-foreground"> — authenticator app, recovery codes, signed-in devices</span>
+            </li>
+            <li>
+              <Link href="/settings/privacy" className="font-medium text-maroon-700 underline underline-offset-2">
+                Privacy and your data
+              </Link>
+              <span className="text-muted-foreground"> — profile visibility, download your data, delete your account</span>
+            </li>
+          </ul>
+        </section>
+
+        <section
           aria-labelledby="password"
           className="rounded-2xl border border-border bg-surface p-5 sm:p-7"
         >

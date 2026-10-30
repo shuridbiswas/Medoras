@@ -34,6 +34,7 @@ const profile: PublicProfile = {
   specialty: null,
   career_stage: "student",
   country: "CA",
+  profile_visibility: "members",
   created_at: "2026-01-01",
 };
 

@@ -249,6 +249,7 @@ export async function searchDirectory(
     .from("profiles")
     .select(NETWORK_MEMBER_COLUMNS, { count: "exact" })
     .eq("onboarding_completed", true)
+    .eq("directory_listed", true)
     .not("username", "is", null)
     .neq("id", viewerId);
 

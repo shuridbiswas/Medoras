@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { DraftNotice } from "@/components/layout/draft-notice";
 import { PageShell } from "@/components/layout/page-shell";
 
-export const metadata: Metadata = { title: "Community Guidelines" };
+export const metadata: Metadata = { title: "Community Guidelines (draft)" };
 
 export default function Page() {
   return (
     <PageShell eyebrow="Community" title="Community Guidelines">
+      <DraftNotice />
       <p>
         These are the working rules for the Medyra community feed. They are a
         starting point, not a finished policy, and will be expanded before the
@@ -50,12 +52,30 @@ export default function Page() {
           content may be visible. Do not assume a post has been reviewed.
         </li>
         <li>
-          <strong>Reporting tools are not built yet.</strong> They are planned.
-          Until then, use the <a href="/contact">contact page</a> to raise a
-          concern. You can block a member from their profile: blocked members
-          can&apos;t connect with or follow you, and they aren&apos;t told.
+          <strong>Review is by people, and not instant.</strong> You can report a post, comment or profile. A person
+          on the Medyra team reads each report; nothing is removed because it was reported, and you won&apos;t always
+          be told the outcome. Reports are not an emergency channel: if someone is in danger, contact your local
+          emergency number.
         </li>
       </ul>
+
+      <h2>Your tools</h2>
+      <ul>
+        <li><strong>Report</strong> a post, comment or profile from the Report button on it.</li>
+        <li><strong>Mute</strong> a member to stop seeing their posts and comments. They aren&apos;t told.</li>
+        <li>
+          <strong>Block</strong> a member to end any connection, stop them from connecting, following, liking or
+          commenting on your posts, and keep their posts out of your feed. They aren&apos;t told.
+        </li>
+        <li>You can manage both lists in Settings.</li>
+      </ul>
+
+      <h2>When we act</h2>
+      <p>
+        The team can warn a member, remove content, or suspend an account, and writes to the member explaining why. The
+        member can appeal and a person reviews the appeal. Every staff action is recorded in an audit log. We may act
+        straight away where there is a risk of serious harm.
+      </p>
 
       <h2>Your posts</h2>
       <p>
