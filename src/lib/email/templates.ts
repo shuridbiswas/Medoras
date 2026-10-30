@@ -133,7 +133,7 @@ export function connectionNotificationEmail(input: {
 }): EmailMessage {
   const first = name(input.recipientFirstName);
   const requester = name(input.requesterName);
-  const url = `${siteUrl()}/home`;
+  const url = siteUrl();
   const settings = `${siteUrl()}/settings`;
   return {
     subject: `${requester} wants to connect on Medyra`,

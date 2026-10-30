@@ -47,7 +47,7 @@ function invalid(error: z.ZodError): ProfileFormState {
 function refresh(username: string | null) {
   revalidatePath("/profile/edit");
   if (username) revalidatePath(`/profile/${username}`);
-  revalidatePath("/home");
+  revalidatePath("/");
 }
 
 const saved = (message: string): ProfileFormState => ({

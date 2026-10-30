@@ -55,11 +55,11 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-/** Requires a signed-in member who has NOT finished onboarding. Others go to /home. */
+/** Requires a signed-in member who has NOT finished onboarding. Others go to the home page (/). */
 export async function requireOnboardingPending() {
   const user = await requireUser();
   const profile = await getProfile(user.id);
-  if (profile?.onboarding_completed) redirect("/home");
+  if (profile?.onboarding_completed) redirect("/");
   return { user, profile, preferences: await getPreferences(user.id) };
 }
 

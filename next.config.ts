@@ -25,6 +25,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // The member home used to live at /home. Keep old links and bookmarks working (query strings
+  // such as ?category= are carried over).
+  async redirects() {
+    return [{ source: "/home", destination: "/", permanent: false }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

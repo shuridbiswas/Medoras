@@ -31,18 +31,38 @@ beforeEach(() => {
   session = { claims: null, configured: true };
 });
 
+describe("the default page (/)", () => {
+  it("sends visitors who are not signed in to the welcome page", async () => {
+    expect(await run("/")).toBe("/welcome");
+    expect(await run("/?category=questions")).toBe("/welcome");
+  });
+
+  it("sends visitors to the welcome page when auth is not configured at all", async () => {
+    session = { claims: null, configured: false };
+    expect(await run("/")).toBe("/welcome");
+  });
+
+  it("lets signed-in members through to the home feed", async () => {
+    session = { claims: { sub: "u1" }, configured: true };
+    expect(await run("/")).toBeNull();
+    expect(await run("/?category=questions")).toBeNull();
+  });
+
+  it("never redirects the welcome page itself (no loop), signed in or out", async () => {
+    expect(await run("/welcome")).toBeNull();
+    session = { claims: { sub: "u1" }, configured: true };
+    expect(await run("/welcome")).toBeNull();
+  });
+});
+
 describe("proxy route protection", () => {
   it("redirects signed-out visitors away from private routes", async () => {
-    expect(await run("/home")).toBe("/login?next=%2Fhome");
     expect(await run("/onboarding")).toBe("/login?next=%2Fonboarding");
     expect(await run("/profile/amina_r")).toBe(
       "/login?next=%2Fprofile%2Famina_r",
     );
     expect(await run("/profile/edit")).toBe("/login?next=%2Fprofile%2Fedit");
     expect(await run("/settings")).toBe("/login?next=%2Fsettings");
-    expect(await run("/home/anything/deep")).toBe(
-      "/login?next=%2Fhome%2Fanything%2Fdeep",
-    );
   });
 
   it("protects the search page and the not-yet-built module pages", async () => {
@@ -60,7 +80,7 @@ describe("proxy route protection", () => {
 
   it("flags missing configuration instead of looping", async () => {
     session = { claims: null, configured: false };
-    expect(await run("/home")).toBe("/login?error=not_configured");
+    expect(await run("/settings")).toBe("/login?error=not_configured");
   });
 
   it("lets signed-out visitors use the guest pages", async () => {
@@ -69,30 +89,29 @@ describe("proxy route protection", () => {
     }
   });
 
-  it("sends signed-in members away from the guest pages", async () => {
+  it("sends signed-in members away from the guest pages to the home page", async () => {
     session = { claims: { sub: "u1" }, configured: true };
     for (const path of ["/login", "/signup", "/forgot-password"]) {
-      expect(await run(path)).toBe("/home");
+      expect(await run(path)).toBe("/");
     }
   });
 
   it("lets signed-in members through to private routes", async () => {
     session = { claims: { sub: "u1" }, configured: true };
-    expect(await run("/home")).toBeNull();
     expect(await run("/onboarding")).toBeNull();
     expect(await run("/reset-password")).toBeNull();
     expect(await run("/profile/amina_r")).toBeNull();
     expect(await run("/profile/edit")).toBeNull();
     expect(await run("/settings")).toBeNull();
-    for (const path of ["/search", "/communities", "/mentorship", "/careers", "/saved"]) {
+    for (const path of ["/search", "/communities", "/mentorship", "/careers", "/saved", "/feedback"]) {
       expect(await run(path)).toBeNull();
     }
   });
 
-  it("only runs on the auth-related routes", () => {
+  it("runs on the root and the auth-related routes only (not on /welcome or public pages)", () => {
     expect(config.matcher).toEqual(
       expect.arrayContaining([
-        "/home/:path*",
+        "/",
         "/profile/:path*",
         "/settings/:path*",
         "/search/:path*",
@@ -100,10 +119,13 @@ describe("proxy route protection", () => {
         "/mentorship/:path*",
         "/careers/:path*",
         "/saved/:path*",
+        "/feedback/:path*",
         "/onboarding/:path*",
         "/login",
         "/signup",
       ]),
     );
+    expect(config.matcher).not.toContain("/welcome");
+    expect(config.matcher).not.toContain("/home/:path*");
   });
 });

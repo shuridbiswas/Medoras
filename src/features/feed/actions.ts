@@ -59,7 +59,7 @@ const friendly = (error: { message?: string } | null | undefined) =>
     : GENERIC_ERROR;
 
 function refresh(username: string | null) {
-  revalidatePath("/home");
+  revalidatePath("/");
   if (username) revalidatePath(`/profile/${username}`);
 }
 

@@ -36,7 +36,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/auth/session", () => ({
   requireOnboardingPending: async () => {
     if (pending === "signed-out") redirectMock("/login");
-    if (pending === "completed") redirectMock("/home");
+    if (pending === "completed") redirectMock("/");
     return {
       user: { id: "u1", email: "amina@example.com" },
       profile: { avatar_path: null, first_name: "Amina" },
@@ -75,7 +75,7 @@ describe("completeOnboarding", () => {
     const to = await redirectOf(() =>
       completeOnboarding(idle, makeFormData(form)),
     );
-    expect(to).toBe("/home");
+    expect(to).toBe("/");
     expect(calls.map((c) => c.table)).toEqual([
       "onboarding_preferences",
       "profiles",
@@ -176,7 +176,7 @@ describe("completeOnboarding", () => {
     pending = "completed";
     expect(
       await redirectOf(() => completeOnboarding(idle, makeFormData(form))),
-    ).toBe("/home");
+    ).toBe("/");
     expect(calls).toHaveLength(0);
   });
 });

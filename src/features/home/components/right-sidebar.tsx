@@ -125,7 +125,7 @@ export async function RightSidebar({ profile }: { profile: ProfileRow }) {
             {active.map((c) => (
               <li key={c.value}>
                 <Link
-                  href={`/home?category=${c.value}`}
+                  href={`/?category=${c.value}`}
                   className="flex items-center justify-between rounded-lg px-1.5 py-1.5 text-sm text-maroon-900 transition-colors hover:bg-maroon-50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   {c.label}

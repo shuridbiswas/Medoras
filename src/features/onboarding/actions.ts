@@ -139,5 +139,5 @@ export async function completeOnboarding(
     "transactional",
   );
 
-  redirect("/home");
+  redirect("/");
 }

@@ -19,7 +19,7 @@ export default function ProfileNotFound() {
         />
         <p className="mt-6 text-center text-sm">
           <Link
-            href="/home"
+            href="/"
             className="font-semibold text-maroon-700 underline-offset-4 hover:underline"
           >
             Back to home

@@ -33,6 +33,6 @@ describe("Hero", () => {
     );
     expect(
       screen.getByRole("link", { name: /discover medyra/i }),
-    ).toHaveAttribute("href", "/#why");
+    ).toHaveAttribute("href", "/welcome#why");
   });
 });

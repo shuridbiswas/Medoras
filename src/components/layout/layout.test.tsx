@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-let pathname = "/home";
+let pathname = "/";
 vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
 vi.mock("@/features/auth/actions", () => ({ signOut: vi.fn() }));
 
@@ -18,18 +18,18 @@ const member = {
 };
 
 beforeEach(() => {
-  pathname = "/home";
+  pathname = "/";
 });
 
 describe("MobileTabBar", () => {
   it("puts Home, Search, Post and Profile one tap away", () => {
     render(<MobileTabBar username="amina_r" />);
     const nav = screen.getByRole("navigation", { name: "Mobile" });
-    expect(within(nav).getByRole("link", { name: /home/i })).toHaveAttribute("href", "/home");
+    expect(within(nav).getByRole("link", { name: /home/i })).toHaveAttribute("href", "/");
     expect(within(nav).getByRole("link", { name: /search/i })).toHaveAttribute("href", "/search");
     expect(within(nav).getByRole("link", { name: /post/i })).toHaveAttribute(
       "href",
-      "/home#composer",
+      "/#composer",
     );
     expect(within(nav).getByRole("link", { name: /profile/i })).toHaveAttribute(
       "href",
@@ -52,7 +52,7 @@ describe("MobileTabBar", () => {
     const dialog = await screen.findByRole("dialog");
     const links = within(dialog).getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
-      "/home",
+      "/",
       "/profile/amina_r",
       "/communities",
       "/mentorship",
@@ -71,7 +71,7 @@ describe("AppHeader", () => {
     expect(screen.getByRole("search")).toHaveAttribute("action", "/search");
     expect(screen.getByRole("searchbox", { name: /search members/i })).toHaveAttribute("name", "q");
     const main = screen.getByRole("navigation", { name: "Main" });
-    expect(within(main).getByRole("link", { name: "Home" })).toHaveAttribute("href", "/home");
+    expect(within(main).getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
     expect(within(main).getByRole("link", { name: "Profile" })).toHaveAttribute(
       "href",
       "/profile/amina_r",
@@ -117,7 +117,8 @@ describe("app navigation config", () => {
   it("matches nested paths but not Home for every page", () => {
     expect(isActivePath("/profile/amina_r", "/profile/amina_r")).toBe(true);
     expect(isActivePath("/settings/anything", "/settings")).toBe(true);
-    expect(isActivePath("/settings", "/home")).toBe(false);
-    expect(isActivePath("/home", "/home")).toBe(true);
+    expect(isActivePath("/settings", "/")).toBe(false);
+    expect(isActivePath("/profile/x", "/")).toBe(false); // "/" matches only itself
+    expect(isActivePath("/", "/")).toBe(true);
   });
 });

@@ -452,10 +452,10 @@ describe("FeedNav", () => {
     render(<FeedNav active="questions" />);
     const links = screen.getAllByRole("link");
     expect(links).toHaveLength(8);
-    expect(screen.getByRole("link", { name: "Latest" })).toHaveAttribute("href", "/home");
+    expect(screen.getByRole("link", { name: "Latest" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Questions" })).toHaveAttribute(
       "href",
-      "/home?category=questions",
+      "/?category=questions",
     );
     expect(screen.getByRole("link", { name: "Questions" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Latest" })).not.toHaveAttribute("aria-current");

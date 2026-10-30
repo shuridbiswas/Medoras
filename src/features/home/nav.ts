@@ -21,7 +21,7 @@ export type AppNavItem = {
 /** Signed-in navigation. "Soon" items lead to an informational page, never to a fake feature. */
 export function appNav(username: string | null): AppNavItem[] {
   return [
-    { key: "home", label: "Home", href: "/home", icon: Home },
+    { key: "home", label: "Home", href: "/", icon: Home },
     {
       key: "profile",
       label: "My Profile",
@@ -61,4 +61,4 @@ export function appNav(username: string | null): AppNavItem[] {
 }
 
 export const isActivePath = (pathname: string, href: string) =>
-  pathname === href || (href !== "/home" && pathname.startsWith(`${href}/`));
+  pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));

@@ -35,7 +35,7 @@ export function Hero() {
               <ArrowRight className="size-4" aria-hidden="true" />
             </LinkButton>
             <LinkButton
-              href="/#why"
+              href="/welcome#why"
               variant="outline"
               className="h-12 px-6 text-base"
             >

@@ -1,9 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { redirectWithSession, updateSession } from "@/lib/supabase/proxy";
 
+/**
+ * Routing model:
+ *   /         signed in -> the member home feed; signed out -> redirected to /welcome
+ *   /welcome  the public welcome (landing) page
+ *   /home     old address, redirected to / by next.config.ts before this proxy runs
+ */
+
 /** Routes that require a signed-in member. Pages re-check on the server as well. */
 const PRIVATE_PREFIXES = [
-  "/home",
   "/onboarding",
   "/reset-password",
   "/profile",
@@ -24,6 +30,15 @@ const matches = (pathname: string, prefix: string) =>
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const session = await updateSession(request);
+
+  // The default page is the member home. Visitors who aren't signed in (or when auth isn't
+  // configured at all) get the public welcome page instead.
+  if (pathname === "/") {
+    if (!session.claims) {
+      return redirectWithSession(request, session.response, "/welcome");
+    }
+    return session.response ?? NextResponse.next();
+  }
 
   const isPrivate = PRIVATE_PREFIXES.some((p) => matches(pathname, p));
   const isGuestOnly = GUEST_ONLY.some((p) => matches(pathname, p));
@@ -48,7 +63,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isGuestOnly && session.claims) {
-    return redirectWithSession(request, session.response, "/home");
+    return redirectWithSession(request, session.response, "/");
   }
 
   return session.response ?? NextResponse.next();
@@ -56,7 +71,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/home/:path*",
+    "/",
     "/profile/:path*",
     "/settings/:path*",
     "/search/:path*",

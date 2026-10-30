@@ -38,7 +38,7 @@ async function ModuleContent({ module }: { module: FutureModuleKey }) {
             ))}
           </ul>
           <div className="mt-6">
-            <LinkButton href="/home" className="h-10 px-5">
+            <LinkButton href="/" className="h-10 px-5">
               Back to home
             </LinkButton>
           </div>

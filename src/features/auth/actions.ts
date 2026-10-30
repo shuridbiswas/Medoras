@@ -254,7 +254,7 @@ export async function updatePassword(
     }),
     "security",
   );
-  redirect("/home");
+  redirect("/");
 }
 
 export async function resendVerification(
@@ -292,5 +292,5 @@ export async function signOut() {
     await supabase.auth.signOut();
   }
   (await cookies()).delete(SESSION_ONLY_COOKIE);
-  redirect("/");
+  redirect("/welcome");
 }

@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
  */
 export function FeedNav({ active }: { active?: PostCategory }) {
   const items = [
-    { href: "/home", label: "Latest", current: !active },
+    { href: "/", label: "Latest", current: !active },
     ...POST_CATEGORIES.map((c) => ({
-      href: `/home?category=${c.value}`,
+      href: `/?category=${c.value}`,
       label: c.label,
       current: active === c.value,
     })),

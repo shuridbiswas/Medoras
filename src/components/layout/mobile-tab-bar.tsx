@@ -19,9 +19,9 @@ export function MobileTabBar({ username }: { username: string | null }) {
   const profileHref = username ? `/profile/${username}` : "/profile/edit";
 
   const links = [
-    { href: "/home", label: "Home", icon: Home },
+    { href: "/", label: "Home", icon: Home },
     { href: "/search", label: "Search", icon: Search },
-    { href: "/home#composer", label: "Post", icon: PenSquare, primary: true },
+    { href: "/#composer", label: "Post", icon: PenSquare, primary: true },
     { href: profileHref, label: "Profile", icon: User },
   ];
 

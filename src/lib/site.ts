@@ -9,10 +9,10 @@ export const siteConfig = {
 } as const;
 
 export const navLinks = [
-  { label: "Why Medyra", href: "/#why" },
-  { label: "Community", href: "/#community" },
-  { label: "Mentorship", href: "/#mentorship" },
-  { label: "Careers", href: "/#careers" },
+  { label: "Why Medyra", href: "/welcome#why" },
+  { label: "Community", href: "/welcome#community" },
+  { label: "Mentorship", href: "/welcome#mentorship" },
+  { label: "Careers", href: "/welcome#careers" },
 ] as const;
 
 export const authLinks = {

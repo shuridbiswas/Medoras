@@ -60,7 +60,7 @@ Run these on the first Netlify preview, because they depend on Netlify behavior 
 
 1. `GET /api/health` returns `{"status":"ok",...}` and the service flags you expect.
 2. `/` loads with the Medyra wordmark and the page title "Medyra".
-3. Visit `/home` signed out: you are **redirected to `/login`**. (This confirms `proxy.ts` runs on Netlify. If you land on an error or an empty page instead, see Troubleshooting.)
+3. Visit `/` signed out: you are **redirected to `/welcome`**, and `/settings` signed out redirects to `/login?next=%2Fsettings`. (This confirms `proxy.ts` runs on Netlify. If you land on an error, an empty page or the member home instead, see Troubleshooting.) Then `/home` should redirect to `/`.
 4. Sign up with a test account, finish onboarding, create a post, like and comment from a second account.
 5. Reload and sign out/in: the data persists.
 6. Check response headers on `/` (browser DevTools > Network): `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy`.
@@ -91,7 +91,7 @@ See DNS_SETUP.md. In short: add the domain in **Domain management**, create the 
 | --- | --- |
 | Build fails with "Node version" errors | Node must be 20.19+. Confirm `NODE_VERSION = "22"` in `netlify.toml` and clear cache and retry |
 | Build fails on `SENTRY_AUTH_TOKEN` / source maps | The token is optional. Remove it, or fix the org/project slugs. The build should still pass without it |
-| `/home` shows an error or loads when signed out | `proxy.ts` may not be running on Netlify. Pages still block signed-out users server-side. Check the function logs, then Netlify's OpenNext docs and support for Next 16 `proxy.ts`. Verify the matcher |
+| `/` or `/settings` shows an error or loads when signed out | `proxy.ts` may not be running on Netlify. Pages still block signed-out users server-side. Check the function logs, then Netlify's OpenNext docs and support for Next 16 `proxy.ts`. Verify the matcher |
 | Login loops or "auth not configured" | Missing `NEXT_PUBLIC_SUPABASE_*` variables in that context, or the Site/Redirect URL in Supabase doesn't include this origin |
 | Confirmation email links go to localhost | `NEXT_PUBLIC_SITE_URL` or the Supabase Site URL is still `http://localhost:3000` |
 | Emails not arriving | See EMAIL_SETUP.md. Check `/api/health` shows `resend: true`, the sender domain is verified, and Supabase SMTP is saved |

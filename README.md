@@ -48,14 +48,14 @@ This repository is connected to a Supabase **development** project (`medyra-dev`
 ## How authentication works
 
 ```
-Visitor -> /signup -> verification email -> /auth/callback -> /onboarding -> /home
-Member  -> /login ------------------------------------------> /home
+Visitor -> /signup -> verification email -> /auth/callback -> /onboarding -> / (home)
+Member  -> /login ------------------------------------------> / (home)
 Signed in, onboarding unfinished: any private route -> /onboarding
 ```
 
 - **Sessions** are Supabase cookies managed by `@supabase/ssr` (`src/lib/supabase`). "Keep me signed in" keeps the persistent cookie; unticked, the session ends when the browser closes.
 - **Protection happens on the server twice.** `src/proxy.ts` refreshes and verifies the session (`getClaims`) and redirects; every private page and action then re-checks through `src/lib/auth/session.ts` (`requireUser`, `requireMember`, `requireOnboardingPending`), which asks the Auth server (`getUser`) and requires a verified email.
-- **Open redirects** are blocked: `?next=` values pass through `safeNextPath`, which only allows internal paths under `/home`, `/onboarding` and `/reset-password`.
+- **Open redirects** are blocked: `?next=` values pass through `safeNextPath`, which only allows `/` and internal paths under `/onboarding` and `/reset-password`.
 - **No account enumeration:** sign-up for an existing email and password reset for unknown emails show the same screen as success; login uses one message for bad email or password.
 - **Data:** `profiles` holds only fields other members may see (no email, no credentials; those live in Supabase's `auth.users`, which is never exposed). Private answers (purposes, city) live in `onboarding_preferences`, readable only by their owner. Row level security, column-level grants and CHECK constraints are in `supabase/migrations/`.
 
@@ -71,7 +71,7 @@ Signed in, onboarding unfinished: any private route -> /onboarding
 
 ## Home feed (Phase 4)
 
-- `/home` is the signed-in landing page: greeting, post composer, category filters (Latest plus seven categories), a newest-first feed, and side rails. On phones the navigation moves to a bottom tab bar with a one-tap Post shortcut and a More menu.
+- `/` is the member home (the default page; visitors who are not signed in are redirected to `/welcome`, and the old `/home` address redirects to `/`). It shows: greeting, post composer, category filters (Latest plus seven categories), a newest-first feed, and side rails. On phones the navigation moves to a bottom tab bar with a one-tap Post shortcut and a More menu.
 - Members can post text in one of seven categories (General Discussion, Academic Life, Career Journey, Professional Advice, Research and Knowledge, Personal Achievement, Questions), edit or delete their own posts, like and unlike, and comment (and delete their own comments). Authors link to their real profiles, and each profile's Activity tab lists that member's posts.
 - Counts come from the database rows. The feed loads 15 posts at a time ("Load more posts").
 - `/search` finds members by name or username (also by field, or "open to mentoring", which is self-reported). It does not search posts, jobs or topics.
@@ -111,8 +111,8 @@ Every service except Supabase is optional and quietly turns off when its variabl
 
 ## Routes
 
-Public: `/`, `/login`, `/signup`, `/forgot-password`, `/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`, `/auth/callback` (email links).
-Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/home`, `/search`, `/profile/[username]`, `/profile/edit`, `/settings`, plus informational pages `/communities`, `/mentorship`, `/careers`, `/saved`.
+Public: `/welcome`, `/login`, `/signup`, `/forgot-password`, `/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`, `/auth/callback` (email links).
+Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/` (home), `/search`, `/profile/[username]`, `/profile/edit`, `/settings`, plus informational pages `/communities`, `/mentorship`, `/careers`, `/saved`.
 
 ## What is verified
 

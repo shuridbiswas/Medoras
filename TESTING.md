@@ -39,7 +39,7 @@ The URL, redirect, password-length and confirmation settings above are already a
 
    Open http://localhost:3000.
 
-Useful URLs: `/signup`, `/login`, `/forgot-password`, `/onboarding`, `/home`, `/profile/edit`, `/profile/<username>`, `/settings`, `/search`.
+Useful URLs: `/signup`, `/login`, `/forgot-password`, `/` (home), `/welcome`, `/onboarding`, `/profile/edit`, `/profile/<username>`, `/settings`, `/search`.
 
 ## 0b. Fill the dev project with fictional test data (optional)
 
@@ -98,7 +98,7 @@ Passwords are random and are written only to `scripts/.seed-output/accounts.json
 
 Walk through the five steps (who you are, your field, your stage, why you are here, your photo and username). Pick a username such as `alex_testa`. Finish. You should arrive at `/home`.
 
-Check: reloading `/home` keeps you signed in; visiting `/onboarding` again sends you back to `/home`.
+Check: reloading `/` keeps you signed in; visiting `/onboarding` again sends you back to `/`.
 
 ## 3. Edit Account A's profile
 
@@ -111,7 +111,7 @@ Check: reloading `/home` keeps you signed in; visiting `/onboarding` again sends
 
 ## 4. Publish a post (Account A)
 
-1. On `/home`, write a post, choose a category, and click **Post**. It appears at the top immediately.
+1. On `/` (home), write a post, choose a category, and click **Post**. It appears at the top immediately.
 2. Reload the page: it is still there (it is stored in PostgreSQL).
 3. Edit the post (shows "Edited"), then publish a second one.
 4. Open your profile and the **Activity** tab: both posts are listed.
@@ -123,7 +123,7 @@ Check: reloading `/home` keeps you signed in; visiting `/onboarding` again sends
 
 ## 6. Account B views Account A
 
-1. On `/home`, Account A's posts appear in the feed with A's name, headline and photo.
+1. On `/` (home), Account A's posts appear in the feed with A's name, headline and photo.
 2. Click A's name. You land on `/profile/alex_testa` with A's real profile, and A's posts under **Activity**.
 3. You can also find A through the header search (`/search?q=alex`).
 
@@ -135,7 +135,7 @@ Check: reloading `/home` keeps you signed in; visiting `/onboarding` again sends
 
 ## 8. Switch back to Account A
 
-1. In A's window, reload `/home`.
+1. In A's window, reload `/`.
 2. A's post shows 1 like and 1 comment. Open the comments and read B's comment. A has no Delete button on B's comment.
 
 ## 9. Confirm everything persists
@@ -184,7 +184,8 @@ rollback;
 ## 12. Other things worth trying
 
 - Sign in with a wrong password: you get one generic error (no hint whether the email exists).
-- Visit `/home` signed out: redirected to `/login`.
+- Visit `/` signed out: you land on `/welcome`. Visit `/settings` signed out: redirected to `/login`. Visit the old `/home`: redirected to `/`.
+- Click the Medyra logo on any page: signed in goes to `/` (home), signed out goes to `/welcome`.
 - Password reset: `/forgot-password` (needs a working email; the same success screen is shown for unknown addresses).
 - Post 21 times within an hour: the database refuses ("posting too quickly").
 - Try a 3,001-character post, an empty post, or a file that is not an image: all are refused.

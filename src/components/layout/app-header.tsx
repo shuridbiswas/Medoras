@@ -66,7 +66,7 @@ export function AppHeader({
           </form>
 
           <nav aria-label="Main" className="ml-auto flex items-center gap-1">
-            <Link href="/home" className={navLink}>
+            <Link href="/" className={navLink}>
               <Home className="size-4" aria-hidden="true" />
               Home
             </Link>

@@ -60,9 +60,9 @@ Conventions:
 
 ## Current scope: Phases 1 to 4 (done)
 
-Phase 1: public welcome page at `/` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
+Phase 1: public welcome page at `/welcome` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
 
-Phase 2: Supabase email/password auth and onboarding. Routes `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/onboarding`, and the protected `/home` (the community feed, Phase 4).
+Phase 2: Supabase email/password auth and onboarding. Routes `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/onboarding`, and the member home at `/` (the community feed, Phase 4).
 
 Auth architecture (see README for setup and verification status):
 
@@ -73,7 +73,7 @@ Auth architecture (see README for setup and verification status):
 - Database: `supabase/migrations/`. `profiles` holds only member-visible fields; private answers live in `onboarding_preferences`; email never leaves `auth.users`. Option lists in `src/features/onboarding/options.ts` must match the SQL CHECK constraints. `supabase/tests/rls.test.ts` runs the migrations in PGlite; update it when policies change.
 - Keep the test mocks in `src/test/mocks.ts` in sync when changing Supabase calls. Untested against a live project until the README setup is done.
 
-Phase 3: professional profiles. Routes `/profile/[username]` (tabs: Overview, Education, Experience, Skills & interests, Activity placeholder), `/profile/edit` (owner only), `/settings` (account, change password, privacy summary). `/home` and every signed-in page use `AppHeader`.
+Phase 3: professional profiles. Routes `/profile/[username]` (tabs: Overview, Education, Experience, Skills & interests, Activity placeholder), `/profile/edit` (owner only), `/settings` (account, change password, privacy summary). The home page (`/`) and every signed-in page use `AppHeader`.
 
 Profile architecture:
 
@@ -86,7 +86,9 @@ Profile architecture:
 - Reserved usernames (`edit`, `profile`, `settings`, ...) are enforced in the DB constraint and `RESERVED_USERNAMES`; keep both in sync when adding top-level routes.
 - Tests: `supabase/tests/rls.test.ts` (migrations in PGlite), `src/features/profile/*.test.*`, `src/test/{mocks,db-mock}.ts` (recording Supabase doubles).
 
-Phase 4: member home and community feed. `/home` is a three-column app page (left: profile card + navigation; center: greeting, composer, category filters, feed; right: new members, fields to explore, active categories, self-reported mentors, planned features). Also `/search` (member search by name/username, field, or open-to-mentor) and informational placeholders `/communities`, `/mentorship`, `/careers`, `/saved`. The profile Activity tab lists the member's real posts.
+Routing: `/` is the default page. Signed-in members see the home feed there; everyone else is redirected to `/welcome` (the public welcome page, which is where `siteConfig` anchors like `/welcome#why` point). The old `/home` address redirects to `/` (next.config.ts, query string kept). The Medyra logo links to `/`, so it means "home" when signed in and "welcome" when not. `proxy.ts` handles the `/` redirect first; `src/app/page.tsx` re-checks on the server.
+
+Phase 4: member home and community feed. `/` is a three-column app page (left: profile card + navigation; center: greeting, composer, category filters, feed; right: new members, fields to explore, active categories, self-reported mentors, planned features). Also `/search` (member search by name/username, field, or open-to-mentor) and informational placeholders `/communities`, `/mentorship`, `/careers`, `/saved`. The profile Activity tab lists the member's real posts.
 
 Feed architecture:
 

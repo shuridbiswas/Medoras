@@ -63,11 +63,11 @@ describe("server-side access control", () => {
     ).toBeNull();
   });
 
-  it("sends onboarded members to /home instead of repeating onboarding", async () => {
+  it("sends onboarded members to the home page (/) instead of repeating onboarding", async () => {
     user = { id: "u1", email_confirmed_at: "2026-10-28T00:00:00Z" };
     profile = { id: "u1", onboarding_completed: true, first_name: "Amina" };
     expect(await redirectOf(() => session.requireOnboardingPending())).toBe(
-      "/home",
+      "/",
     );
     const result = await session.requireMember();
     expect(result.profile.first_name).toBe("Amina");

@@ -150,11 +150,11 @@ describe("signIn", () => {
     remember: "on",
   };
 
-  it("signs in and redirects to /home", async () => {
+  it("signs in and redirects to the home page (/)", async () => {
     const to = await redirectOf(() =>
       actions.signIn(idle, makeFormData(login)),
     );
-    expect(to).toBe("/home");
+    expect(to).toBe("/");
     expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
       email: "amina@example.com",
       password: "whatever-1",
@@ -186,7 +186,7 @@ describe("signIn", () => {
           makeFormData({ ...login, next: "https://evil.example" }),
         ),
       ),
-    ).toBe("/home");
+    ).toBe("/");
     expect(
       await redirectOf(() =>
         actions.signIn(
@@ -194,7 +194,7 @@ describe("signIn", () => {
           makeFormData({ ...login, next: "//evil.example" }),
         ),
       ),
-    ).toBe("/home");
+    ).toBe("/");
   });
 
   it("gives one generic message for invalid credentials", async () => {
@@ -274,7 +274,7 @@ describe("password recovery", () => {
         }),
       ),
     );
-    expect(to).toBe("/home");
+    expect(to).toBe("/");
     // The member is told their password changed (security notices always send).
     expect(sendToMember).toHaveBeenCalledTimes(1);
     const [recipient, message, category] = sendToMember.mock.calls[0] as unknown as [
@@ -353,7 +353,7 @@ describe("resendVerification and signOut", () => {
 
   it("signs out, clears the session-only flag and returns to the welcome page", async () => {
     const to = await redirectOf(() => actions.signOut());
-    expect(to).toBe("/");
+    expect(to).toBe("/welcome");
     expect(supabase.auth.signOut).toHaveBeenCalled();
     expect(cookieStore.delete).toHaveBeenCalledWith("medyra-session-only");
   });

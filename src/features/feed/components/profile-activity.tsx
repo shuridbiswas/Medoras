@@ -19,7 +19,7 @@ export function ProfileActivity({
       <FeedSection
         viewerId={viewerId}
         authorId={authorId}
-        retryHref="/home"
+        retryHref="/"
         emptyTitle="No posts yet"
         emptyDescription={
           isOwner

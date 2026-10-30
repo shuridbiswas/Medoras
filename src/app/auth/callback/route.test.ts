@@ -47,7 +47,7 @@ describe("/auth/callback", () => {
   });
 
   it("verifies a recovery link and sends the member to choose a new password", async () => {
-    const result = await call("token_hash=abc&type=recovery&next=/home");
+    const result = await call("token_hash=abc&type=recovery&next=/");
     expect(result.location).toBe("/reset-password");
   });
 

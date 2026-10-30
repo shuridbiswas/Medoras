@@ -3,7 +3,6 @@
  * so `?next=` can never send a member to another site (open redirect).
  */
 const ALLOWED_PREFIXES = [
-  "/home",
   "/onboarding",
   "/reset-password",
   "/profile",
@@ -13,7 +12,7 @@ const ALLOWED_PREFIXES = [
 
 export function safeNextPath(
   next: string | null | undefined,
-  fallback = "/home",
+  fallback = "/",
 ): string {
   if (!next || typeof next !== "string") return fallback;
   // Reject protocol-relative ("//evil"), backslash tricks, schemes and control characters.
@@ -33,9 +32,11 @@ export function safeNextPath(
   if (url.origin !== "http://medyra.invalid") return fallback;
 
   const { pathname } = url;
-  const allowed = ALLOWED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  const allowed =
+    pathname === "/" ||
+    ALLOWED_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    );
   // The query string is dropped on purpose: destinations never need it.
   return allowed ? pathname : fallback;
 }
