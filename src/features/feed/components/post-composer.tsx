@@ -44,9 +44,12 @@ function PostButton() {
 export function PostComposer({
   name,
   avatarSrc,
+  communityId,
 }: {
   name: string;
   avatarSrc: string | null;
+  /** Posts into this community instead of the home feed. */
+  communityId?: string;
 }) {
   // Controlled fields: React clears uncontrolled forms after every submit, even a failed one,
   // and a member must never lose what they wrote because publishing failed.
@@ -75,6 +78,7 @@ export function PostComposer({
         Share with the community
       </h2>
       <form action={action} className="flex gap-3" noValidate>
+        {communityId ? <input type="hidden" name="communityId" value={communityId} /> : null}
         <MemberAvatar name={name} src={avatarSrc} className="hidden sm:flex" />
         <div className="min-w-0 flex-1 space-y-3">
           <div>

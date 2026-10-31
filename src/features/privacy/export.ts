@@ -21,6 +21,47 @@ async function section(run: () => PromiseLike<{ data: unknown; error: unknown }>
   return error ? { unavailable: true } : (data ?? []);
 }
 
+/** Reads rows by id in small batches so a large export never builds an over-long request. */
+async function rowsByIds(db: Supabase, table: "forum_questions" | "forum_answers" | "forum_replies", columns: string, ids: string[]) {
+  const rows: unknown[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await db.from(table).select(columns).in("id", ids.slice(i, i + 100)).overrideTypes<unknown[], { merge: false }>();
+    if (error) return { unavailable: true };
+    rows.push(...(data ?? []));
+  }
+  return rows;
+}
+
+/**
+ * The member's forum content. Anonymous posts are included on purpose: they are this member's own
+ * data, and they come from the private identity records only this member can read.
+ */
+async function forumSection(db: Supabase, me: string) {
+  const { data, error } = await db
+    .from("forum_identity")
+    .select("content_type, content_id")
+    .eq("author_id", me)
+    .limit(LIMIT)
+    .overrideTypes<{ content_type: string; content_id: string }[], { merge: false }>();
+  if (error) return { unavailable: true };
+  const ids = (type: string) => (data ?? []).filter((i) => i.content_type === type).map((i) => i.content_id);
+  const [questions, answers, replies, votes, follows] = await Promise.all([
+    rowsByIds(db, "forum_questions", "id, topic_slug, kind, title, body, is_anonymous, created_at, edited_at", ids("question")),
+    rowsByIds(db, "forum_answers", "id, question_id, body, is_anonymous, created_at, edited_at", ids("answer")),
+    rowsByIds(db, "forum_replies", "id, answer_id, body, is_anonymous, created_at", ids("reply")),
+    section(() => db.from("forum_votes").select("answer_id, created_at").eq("user_id", me).limit(LIMIT)),
+    section(() => db.from("forum_follows").select("question_id, created_at").eq("user_id", me).limit(LIMIT)),
+  ]);
+  return {
+    note: "Includes anything you posted anonymously. Other members cannot see that it is yours.",
+    questions,
+    answers,
+    replies,
+    helpful_votes: votes,
+    followed_questions: follows,
+  };
+}
+
 export async function exportMemberData(user: Pick<User, "id" | "email" | "created_at" | "last_sign_in_at">, supabase?: Supabase) {
   const db = supabase ?? (await createClient());
   const me = user.id;
@@ -28,6 +69,7 @@ export async function exportMemberData(user: Pick<User, "id" | "email" | "create
   const [
     profile, onboarding, education, experience, skills, posts, comments, likes, connections, follows,
     blocks, mutes, saved, notifications, notificationPreferences, consents, requests, notices, appeals, reports,
+    communityMemberships, communityRequests, communityPosts, forum,
   ] = await Promise.all([
     section(() => db.from("profiles").select("*").eq("id", me).maybeSingle()),
     section(() => db.from("onboarding_preferences").select("*").eq("user_id", me).maybeSingle()),
@@ -49,6 +91,10 @@ export async function exportMemberData(user: Pick<User, "id" | "email" | "create
     section(() => db.from("member_notices").select("*").eq("member_id", me).limit(LIMIT)),
     section(() => db.from("appeals").select("*").eq("member_id", me).limit(LIMIT)),
     section(() => db.from("reports").select("id, target_type, target_id, reason, details, status, created_at").eq("reporter_id", me).limit(LIMIT)),
+    section(() => db.from("community_members").select("community_id, role, joined_at").eq("user_id", me).limit(LIMIT)),
+    section(() => db.from("community_requests").select("community_id, message, status, created_at").eq("user_id", me).limit(LIMIT)),
+    section(() => db.from("posts").select("id, community_id").eq("author_id", me).not("community_id", "is", null).limit(LIMIT)),
+    forumSection(db, me),
   ]);
 
   return {
@@ -77,5 +123,9 @@ export async function exportMemberData(user: Pick<User, "id" | "email" | "create
     moderation_notices: notices,
     appeals,
     reports_you_filed: reports,
+    community_memberships: communityMemberships,
+    community_join_requests: communityRequests,
+    community_post_ids: communityPosts,
+    forums: forum,
   };
 }

@@ -18,6 +18,7 @@ const safety = vi.hoisted(() => ({ submitReport: vi.fn(), setMute: vi.fn(), subm
 vi.mock("@/features/safety/actions", () => safety);
 const saved = vi.hoisted(() => ({ setSaved: vi.fn() }));
 vi.mock("@/features/saved/actions", () => saved);
+vi.mock("@/features/communities/actions", () => ({ removeCommunityPost: vi.fn() }));
 
 const { PostCard } = await import("@/features/feed/components/post-card");
 const { FeedList } = await import("@/features/feed/components/feed-list");

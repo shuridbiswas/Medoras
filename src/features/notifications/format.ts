@@ -16,7 +16,7 @@ export type NotificationActor = {
 export type NotificationItem = {
   id: string;
   type: NotificationType;
-  entity_type: "post" | "connection" | "community" | "mentorship" | null;
+  entity_type: "post" | "connection" | "community" | "mentorship" | "forum_question" | null;
   entity_id: string | null;
   created_at: string;
   read_at: string | null;
@@ -45,6 +45,18 @@ export function describeAction(type: NotificationType): string {
       return "shared a community update";
     case "mentorship_event":
       return "sent a mentorship update";
+    case "community_join_request":
+      return "asked to join a community you moderate";
+    case "community_request_approved":
+      return "approved your request to join a community";
+    case "community_post_removed":
+      return "removed one of your community posts";
+    case "forum_answer":
+      return "answered a question you asked or follow";
+    case "forum_reply":
+      return "replied to your answer";
+    case "forum_answer_accepted":
+      return "accepted your answer";
   }
 }
 
@@ -59,6 +71,14 @@ export function notificationHref(n: NotificationItem): string {
     case "comment_reply":
     case "mention":
       return n.entity_type === "post" && n.entity_id ? `/post/${n.entity_id}` : "/notifications";
+    case "forum_answer":
+    case "forum_reply":
+    case "forum_answer_accepted":
+      return n.entity_type === "forum_question" && n.entity_id ? `/forums/${n.entity_id}` : "/notifications";
+    case "community_join_request":
+    case "community_request_approved":
+    case "community_post_removed":
+      return "/communities";
     default:
       return "/notifications";
   }

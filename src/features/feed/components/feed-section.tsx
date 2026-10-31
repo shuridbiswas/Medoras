@@ -12,6 +12,8 @@ export async function FeedSection({
   category,
   authorId,
   scope,
+  communityId,
+  moderatorOfCommunity,
   emptyTitle,
   emptyDescription,
   retryHref,
@@ -20,11 +22,13 @@ export async function FeedSection({
   category?: PostCategory;
   authorId?: string;
   scope?: "following";
+  communityId?: string;
+  moderatorOfCommunity?: boolean;
   emptyTitle: string;
   emptyDescription: string;
   retryHref: string;
 }) {
-  const page = await getFeedPage(viewerId, { category, authorId, scope });
+  const page = await getFeedPage(viewerId, { category, authorId, scope, communityId });
 
   if (page.failed) {
     return (
@@ -53,6 +57,8 @@ export async function FeedSection({
       category={category}
       authorId={authorId}
       scope={scope}
+      communityId={communityId}
+      moderatorOfCommunity={moderatorOfCommunity}
       empty={
         <EmptyState
           icon={MessagesSquare}

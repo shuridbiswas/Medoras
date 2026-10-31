@@ -20,4 +20,12 @@ export const reportReasonLabel = (value: string) =>
 export const REPORT_DETAILS_MAX = 1000;
 export const APPEAL_MAX = 2000;
 
-export const REPORT_TARGET_LABELS = { post: "post", comment: "comment", profile: "profile" } as const;
+export const REPORT_TARGET_LABELS = {
+  post: "post",
+  comment: "comment",
+  profile: "profile",
+  question: "question",
+  answer: "answer",
+  reply: "reply",
+  community: "community",
+} as const;

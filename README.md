@@ -84,12 +84,21 @@ Migrations `20261102000001_safety_and_moderation.sql` and `20261102000002_accoun
 
 Migration `20261101000001_network.sql` adds `connections`, `follows`, `member_blocks`, `saved_items` and `notifications` (all with row level security) and two in-app notification preferences. Apply it like the others.
 
-- **Layout.** Every signed-in page has a fixed sidebar on large screens (Home, Network, Communities, Mentorship, Saved, Profile; Careers and Settings below a divider; New Post), a top bar (search, notification bell with unread count, account menu) and a bottom tab bar on phones. Communities, Mentorship and Careers are marked "Soon".
+- **Layout.** Every signed-in page has a fixed sidebar on large screens (Home, Network, Communities, Mentorship, Saved, Profile; Careers and Settings below a divider; New Post), a top bar (search, notification bell with unread count, account menu) and a bottom tab bar on phones. Mentorship and Careers are marked "Soon"; Communities and Forums are live (Phase 6).
 - **`/network`** is the member directory: search by name, member type (students, professionals, researchers), field, mentorship interest, institution, country and city or region. Results are paginated (12 per page). Every card says "Unverified" because credentials are not verified yet. `/network/requests` lists requests you received and sent; `/network/connections` lists your connections with counts.
 - **Connections** are mutual: send, accept, decline, withdraw and remove. One row per pair (a duplicate or crossed request is refused), no self requests, nothing between blocked members. **Following** is separate and one-way. Counts are computed from the rows and shown on profiles; a profile also lists a member's connections.
 - **Blocking** (profile page, listed in Settings) ends any connection or follow in both directions and stops new ones. It is private: the blocked member is not told. There is still no reporting.
 - **`/saved`** lists posts you bookmarked (bookmark button on every post). `saved_items` uses `item_type` + `item_id`, so questions, research and jobs can be added later by extending one constraint. **`/post/[id]`** opens a single post (the target of saved items and notifications). The home feed has Latest and Following views.
 - **`/notifications`** (connection requests, accepted requests, comments, replies) with read/unread state, "mark all as read", dismiss, and in-app preferences in Settings. Notifications are written only by database triggers and never contain post or comment text. Mentions, community and mentorship events are in the schema but nothing creates them yet.
+
+## Communities and forums (Phase 6)
+
+Migration `20261103000001_communities_and_forums.sql`. **Apply it before deploying.** Needs no new environment variables.
+
+- **Communities** (`/communities`, `/communities/create`, `/communities/[slug]`, `/communities/[slug]/members`): profession, institution, research, regional and interest groups; public (anyone joins) or private (listed, but posts and members are members-only; a moderator approves each request). Rules, announcements, owner and moderator roles, member removal, and a moderator log. Community posts use the normal post system, comments, likes and bookmarks.
+- **Forums** (`/forums`, `/forums/ask`, `/forums/[id]`, `/forums/topics/[slug]`): questions, answers, replies, helpful votes, accepted answers, topic and kind filters, full-text search, following, saving, and an "Unverified" chip plus the self-reported role on each author. Framed as educational peer discussion, never as clinical consultation or a patient-specific second opinion; asking requires confirming no identifiable patient information.
+- **Anonymous posting** for questions, answers and replies: other members, search, notifications and exports never show the writer. Medyra keeps a private record so the writer can edit or delete and so abuse can be handled; staff act on reported anonymous posts without being shown who wrote them. This is anonymity from members, not from Medyra; the UI says so.
+- Reporting, blocking, muting and the admin queue are the existing ones, extended to forum content and communities. There is no automated or AI moderation.
 
 ## Home feed (Phase 4)
 
@@ -134,7 +143,7 @@ Every service except Supabase is optional and quietly turns off when its variabl
 ## Routes
 
 Public: `/welcome`, `/login`, `/signup`, `/forgot-password`, `/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`, `/auth/callback` (email links).
-Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/` (home), `/network`, `/network/requests`, `/network/connections`, `/saved`, `/notifications`, `/post/[id]`, `/profile/[username]`, `/profile/edit`, `/settings`, `/feedback`, plus informational pages `/communities`, `/mentorship`, `/careers`. `/search` redirects to `/network`.
+Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/` (home), `/communities`, `/communities/create`, `/communities/[slug]`, `/communities/[slug]/members`, `/forums`, `/forums/ask`, `/forums/[id]`, `/forums/topics/[slug]`, `/network`, `/network/requests`, `/network/connections`, `/saved`, `/notifications`, `/post/[id]`, `/profile/[username]`, `/profile/edit`, `/settings`, `/feedback`, plus informational pages `/mentorship`, `/careers`. `/search` redirects to `/network`.
 
 ## What is verified
 

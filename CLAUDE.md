@@ -58,7 +58,7 @@ Conventions:
 - Never invent credentials. Secrets only via `.env.local` (see `.env.example`); never commit real values.
 - Before finishing work: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
-## Current scope: Phases 1 to 4b and 4A (done)
+## Current scope: Phases 1 to 4b, 4A and 6 (done)
 
 Phase 1: public welcome page at `/welcome` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
 
@@ -131,7 +131,26 @@ Phase 4A architecture:
 - **Guards:** `src/lib/api-protection.test.ts` lists every route handler and its protection (add new routes there); admin pages must call `requireAdmin()`; every non-auth `actions.ts` must call a session gate. After adding functions to the `private` schema, re-run `revoke execute on all functions in schema private` and re-grant only the policy helpers.
 - **Tests:** `supabase/tests/{safety,security-privacy}.test.ts` (shared `helpers.ts` stubs Supabase's auth schema), `src/lib/auth/{mfa,two-factor,gates}.test.ts`, `src/features/{security,safety,admin,privacy}/*.test.*`.
 
-Out of scope until later phases: communities, mentorship matching, forums, messaging, jobs, automated or AI moderation, post media, AI features, per-field privacy settings, username changes, organization profiles (follows are member-only), mentions.
+Phase 6: communities, forums and educational second opinions (migration `20261103000001_communities_and_forums.sql`). Routes `/communities`, `/communities/create`, `/communities/[slug]`, `/communities/[slug]/members`, `/forums`, `/forums/ask`, `/forums/[id]`, `/forums/topics/[slug]`.
+
+Communities architecture:
+
+- Code in `src/features/communities/`. `communities` (kind, public or private, rules), `community_members` (owner / moderator / member), `community_requests`, `community_bans`, `community_announcements`, `community_audit_logs`. **Community posts reuse `posts`** with `posts.community_id`; the home feed and Following filter `community_id is null`. Policies on `posts`, `post_comments` and `post_likes` call `private.can_read_community / post_visible`, so a private community's posts, comments and likes are readable only by members.
+- Public: any member reads and joins instantly. Private: name, description and rules are listed, everything inside is members-only, joining needs a moderator's approval. Creating is limited to 3 a day; the creator becomes owner by trigger.
+- **Moderation is done only through security definer functions** (`decide_join_request, set_community_role, community_set_ban, community_remove_post, community_remove_comment`) that check the caller's role and write the append-only `community_audit_logs` (reasons from a fixed list, never content). Owner: roles, settings, removing moderators. Moderators: requests, removing members and posts, announcements. Platform administrators can read community logs and close a community through a report (`moderate_report` sets `archived_at`); nothing else is writable by clients. The comment-removal function exists but has no UI yet.
+- `private.protect_community_audit` keeps the log append-only but lets account deletion null the actor and a community delete cascade.
+
+Forums architecture ("Ask, Answer, Discover"):
+
+- Code in `src/features/forums/`. Tables `forum_topics` (fixed list), `forum_questions`, `forum_answers`, `forum_replies`, `forum_votes` (helpful), `forum_follows`, and `forum_identity`. Saved questions and answers use `saved_items` (`forum_question`, `forum_answer`); notifications use types `forum_answer, forum_reply, forum_answer_accepted` and entity `forum_question`. Search is Postgres full text (`forum_questions.search`, config `simple`).
+- **Anonymity (do not weaken):** an anonymous question, answer or reply has `author_id = NULL` and `is_anonymous = true` (a CHECK ties them together). The writer exists only in `forum_identity`, readable by that member alone, with no client insert, update or delete. Content is created only by `ask_question / post_answer / post_reply`, which write both rows in one transaction. Edit, delete and accept resolve the writer through `private.is_content_author`. Never add a query, embed, notification actor, export field or admin view that joins `forum_identity` for anyone but the member themself. Notifications about anonymous answers have `actor_id = null`.
+- **Moderation of anonymous content:** `reports.target_member_id` stays NULL for anonymous content, so neither reporters nor the staff queue see the writer; `moderate_report` resolves the writer inside the function to warn, remove or suspend, and `moderation_actions.member_id` and the audit metadata stay empty for it. Limit to state honestly: staff can see that someone was suspended around the time of a decision.
+- **Blocks hide, never refuse:** forum content by a blocked member (anonymous or not) is hidden by RLS in both directions (`private.content_author_blocked`), and answering hidden content fails exactly like answering content that does not exist, so a block can never confirm who an anonymous writer is.
+- Education framing lives in `forums/content.ts` and `EducationalNotice`: not a clinical consultation, diagnosis or patient-specific second opinion; asking requires confirming the question has no identifiable patient information (`forum_questions.confirmed_deidentified`); reports reuse the `patient_privacy` reason. Author lines show the self-reported role plus the shared "Unverified" chip; anonymous writers show nothing. No verification badges exist.
+- Limits: 5 questions, 30 answers and 60 replies an hour per member (counted on the private record, so anonymity does not bypass them).
+- Tests: `supabase/tests/communities-forums.test.ts` (PGlite: private permissions, moderator roles, bans, audit, anonymity leakage sweep, blocks, voting, acceptance, reports and moderation of anonymous content), `src/features/communities/*.test.*`, `src/features/forums/*.test.*`. The `private.post_visible`-based policies changed one old behaviour: liking or commenting on a missing post is now refused by RLS (42501) instead of a foreign-key error.
+
+Out of scope until later phases: mentorship matching, messaging, jobs, automated or AI moderation, post media, AI features, per-field privacy settings, username changes, organization profiles (follows are member-only), mentions.
 
 ## Infrastructure (Netlify, Sentry, Upstash, Resend, ProductBridge, Pinecone)
 
@@ -154,7 +173,7 @@ Read ARCHITECTURE.md for decisions and risks. Conventions:
 2. **Phase 3 (done):** Professional profiles.
 3. **Phase 4 (done):** Member home page and community feed (posts, likes, comments, categories, search).
 4. **Phase 4b (connections, follows, blocking, saved posts, notifications: done):** still to do: communities, reporting and moderation tooling.
-5. **Phase 5:** Mentorship matching, forums (anonymous option), verification badges.
+5. **Phase 5:** Mentorship matching, verification badges. (Forums with the anonymous option and communities shipped in Phase 6.)
 6. **Phase 6:** Careers and employer profiles, articles/research, stories.
 7. **Phase 7:** Nearby communities and events, mental-health and peer-support space with human + AI-assisted moderation, reporting/blocking/muting.
 

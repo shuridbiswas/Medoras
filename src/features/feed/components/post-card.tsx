@@ -113,9 +113,12 @@ export function PostCard({
   post: initial,
   onDeleted,
   onUnsaved,
+  moderation,
 }: {
   post: FeedPost;
   onDeleted: (id: string) => void;
+  /** Extra controls for community moderators, shown beside Report. */
+  moderation?: React.ReactNode;
   /** Called after the viewer removes the post from their saved items. */
   onUnsaved?: (id: string) => void;
 }) {
@@ -340,7 +343,12 @@ export function PostCard({
         </div>
       </div>
 
-      {!post.isOwn ? <ReportButton targetType="post" targetId={post.id} className="mt-1" /> : null}
+      {!post.isOwn ? (
+        <div className="mt-1 flex flex-wrap items-start gap-x-3">
+          <ReportButton targetType="post" targetId={post.id} />
+          {moderation}
+        </div>
+      ) : null}
 
       <div id={`${id}-comments`}>
         {showComments ? (

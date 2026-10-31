@@ -19,6 +19,8 @@ export const categorySchema = z.enum(POST_CATEGORY_VALUES, {
 export const postSchema = z.object({
   category: categorySchema,
   body: body(POST_MAX_LENGTH, "Write something to share."),
+  /** Set when the post belongs to a community; the database checks membership. */
+  communityId: z.uuid().optional(),
 });
 
 export const editPostSchema = postSchema.extend({
@@ -44,6 +46,7 @@ export const feedRequestSchema = z.object({
   category: categorySchema.optional(),
   authorId: z.uuid().optional(),
   scope: z.literal("following").optional(),
+  communityId: z.uuid().optional(),
 });
 
 export type FeedRequest = z.infer<typeof feedRequestSchema>;

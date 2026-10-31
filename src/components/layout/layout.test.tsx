@@ -64,13 +64,14 @@ describe("MobileTabBar", () => {
       "/",
       "/network",
       "/communities",
+      "/forums",
       "/mentorship",
       "/saved",
       "/profile/amina_r",
       "/careers",
       "/settings",
     ]);
-    expect(within(dialog).getAllByText("Coming soon")).toHaveLength(3);
+    expect(within(dialog).getAllByText("Coming soon")).toHaveLength(2);
     expect(within(dialog).getByRole("button", { name: /sign out/i })).toBeInTheDocument();
   });
 });
@@ -89,6 +90,7 @@ describe("AppHeader", () => {
       "/",
       "/network",
       "/communities",
+      "/forums",
       "/mentorship",
       "/saved",
       "/profile/amina_r",
@@ -127,7 +129,6 @@ describe("app navigation config", () => {
   it("marks unbuilt modules as soon and builds the profile link from the username", () => {
     const nav = appNav("amina_r");
     expect(nav.filter((n) => n.soon).map((n) => n.key)).toEqual([
-      "communities",
       "mentorship",
       "careers",
     ]);

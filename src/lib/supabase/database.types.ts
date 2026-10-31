@@ -87,6 +87,8 @@ export type PostRow = {
   created_at: string;
   updated_at: string;
   edited_at: string | null;
+  /** Set for a community post; null for a post on the home feed. */
+  community_id: string | null;
 };
 
 export type PostLikeRow = {
@@ -136,7 +138,7 @@ export type MemberBlockRow = {
 };
 
 /** Add a value here and to saved_items_type_valid when a new kind of content can be bookmarked. */
-export type SavedItemType = "post";
+export type SavedItemType = "post" | "forum_question" | "forum_answer";
 
 export type SavedItemRow = {
   id: string;
@@ -153,20 +155,26 @@ export type NotificationType =
   | "comment_reply"
   | "mention"
   | "community_event"
-  | "mentorship_event";
+  | "mentorship_event"
+  | "community_join_request"
+  | "community_request_approved"
+  | "community_post_removed"
+  | "forum_answer"
+  | "forum_reply"
+  | "forum_answer_accepted";
 
 export type NotificationRow = {
   id: string;
   recipient_id: string;
   actor_id: string | null;
   type: NotificationType;
-  entity_type: "post" | "connection" | "community" | "mentorship" | null;
+  entity_type: "post" | "connection" | "community" | "mentorship" | "forum_question" | null;
   entity_id: string | null;
   created_at: string;
   read_at: string | null;
 };
 
-export type ReportTargetType = "post" | "comment" | "profile";
+export type ReportTargetType = "post" | "comment" | "profile" | "question" | "answer" | "reply" | "community";
 export type ReportStatus = "open" | "reviewing" | "actioned" | "dismissed";
 
 export type ReportRow = {
@@ -262,6 +270,111 @@ export type DataRequestRow = {
 
 export type RetentionPolicyRow = { key: string; days: number; description: string };
 
+export type CommunityKind = "profession" | "institution" | "research" | "regional" | "interest";
+export type CommunityVisibility = "public" | "private";
+export type CommunityRole = "owner" | "moderator" | "member";
+
+export type CommunityRow = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  kind: CommunityKind;
+  visibility: CommunityVisibility;
+  rules: string | null;
+  institution: string | null;
+  region_label: string | null;
+  country: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+};
+
+export type CommunityMemberRow = { community_id: string; user_id: string; role: CommunityRole; joined_at: string };
+
+export type CommunityRequestRow = {
+  id: string;
+  community_id: string;
+  user_id: string;
+  message: string | null;
+  status: "pending" | "approved" | "rejected";
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+};
+
+export type CommunityBanRow = {
+  community_id: string;
+  user_id: string;
+  banned_by: string | null;
+  reason: string;
+  created_at: string;
+};
+
+export type CommunityAnnouncementRow = {
+  id: string;
+  community_id: string;
+  author_id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CommunityAuditLogRow = {
+  id: string;
+  community_id: string;
+  actor_id: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+export type ForumTopicRow = { slug: string; name: string; description: string; sort_order: number };
+export type ForumContentType = "question" | "answer" | "reply";
+
+/** Only the writer can read their rows. Never selected for anyone else. */
+export type ForumIdentityRow = { content_type: ForumContentType; content_id: string; author_id: string; created_at: string };
+
+export type ForumQuestionRow = {
+  id: string;
+  topic_slug: string;
+  kind: string;
+  title: string;
+  body: string;
+  /** Null when the question is anonymous. */
+  author_id: string | null;
+  is_anonymous: boolean;
+  accepted_answer_id: string | null;
+  confirmed_deidentified: boolean;
+  created_at: string;
+  updated_at: string;
+  edited_at: string | null;
+};
+
+export type ForumAnswerRow = {
+  id: string;
+  question_id: string;
+  author_id: string | null;
+  is_anonymous: boolean;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  edited_at: string | null;
+};
+
+export type ForumReplyRow = {
+  id: string;
+  answer_id: string;
+  author_id: string | null;
+  is_anonymous: boolean;
+  body: string;
+  created_at: string;
+};
+
 type Updatable<Row, Omit_ extends keyof Row> = Partial<Omit<Row, Omit_>>;
 
 export type Database = {
@@ -306,7 +419,7 @@ export type Database = {
       };
       posts: {
         Row: PostRow;
-        Insert: Pick<PostRow, "author_id" | "category" | "body">;
+        Insert: Pick<PostRow, "author_id" | "category" | "body"> & Partial<Pick<PostRow, "community_id">>;
         Update: Partial<Pick<PostRow, "category" | "body">>;
         Relationships: [];
       };
@@ -400,6 +513,62 @@ export type Database = {
         Relationships: [];
       };
       retention_policies: { Row: RetentionPolicyRow; Insert: never; Update: never; Relationships: [] };
+      communities: {
+        Row: CommunityRow;
+        Insert: Pick<CommunityRow, "slug" | "name" | "description" | "kind" | "created_by"> &
+          Partial<Pick<CommunityRow, "visibility" | "rules" | "institution" | "region_label" | "country">>;
+        Update: Partial<
+          Pick<CommunityRow, "name" | "description" | "visibility" | "rules" | "institution" | "region_label" | "country">
+        >;
+        Relationships: [];
+      };
+      community_members: {
+        Row: CommunityMemberRow;
+        Insert: Pick<CommunityMemberRow, "community_id" | "user_id">;
+        Update: never;
+        Relationships: [];
+      };
+      community_requests: {
+        Row: CommunityRequestRow;
+        Insert: Pick<CommunityRequestRow, "community_id" | "user_id"> & Partial<Pick<CommunityRequestRow, "message">>;
+        Update: never;
+        Relationships: [];
+      };
+      community_bans: { Row: CommunityBanRow; Insert: never; Update: never; Relationships: [] };
+      community_announcements: {
+        Row: CommunityAnnouncementRow;
+        Insert: Pick<CommunityAnnouncementRow, "community_id" | "author_id" | "title" | "body">;
+        Update: Partial<Pick<CommunityAnnouncementRow, "title" | "body">>;
+        Relationships: [];
+      };
+      community_audit_logs: { Row: CommunityAuditLogRow; Insert: never; Update: never; Relationships: [] };
+      forum_topics: { Row: ForumTopicRow; Insert: never; Update: never; Relationships: [] };
+      forum_identity: { Row: ForumIdentityRow; Insert: never; Update: never; Relationships: [] };
+      forum_questions: {
+        Row: ForumQuestionRow;
+        Insert: never;
+        Update: Partial<Pick<ForumQuestionRow, "topic_slug" | "kind" | "title" | "body" | "accepted_answer_id">>;
+        Relationships: [];
+      };
+      forum_answers: {
+        Row: ForumAnswerRow;
+        Insert: never;
+        Update: Partial<Pick<ForumAnswerRow, "body">>;
+        Relationships: [];
+      };
+      forum_replies: { Row: ForumReplyRow; Insert: never; Update: never; Relationships: [] };
+      forum_votes: {
+        Row: { answer_id: string; user_id: string; created_at: string };
+        Insert: { answer_id: string; user_id: string };
+        Update: never;
+        Relationships: [];
+      };
+      forum_follows: {
+        Row: { question_id: string; user_id: string; created_at: string };
+        Insert: { question_id: string; user_id: string };
+        Update: never;
+        Relationships: [];
+      };
       // Rows are created by database triggers, never by clients.
       notifications: {
         Row: NotificationRow;
@@ -427,6 +596,27 @@ export type Database = {
         Args: { p_appeal: string; p_decision: string; p_note?: string | null };
         Returns: undefined;
       };
+      decide_join_request: { Args: { p_request: string; p_approve: boolean }; Returns: undefined };
+      set_community_role: { Args: { p_community: string; p_user: string; p_role: string }; Returns: undefined };
+      community_set_ban: {
+        Args: { p_community: string; p_user: string; p_banned: boolean; p_reason?: string };
+        Returns: undefined;
+      };
+      community_remove_post: { Args: { p_post: string; p_reason?: string }; Returns: undefined };
+      community_remove_comment: { Args: { p_comment: string; p_reason?: string }; Returns: undefined };
+      ask_question: {
+        Args: {
+          p_topic: string;
+          p_kind: string;
+          p_title: string;
+          p_body: string;
+          p_anonymous: boolean;
+          p_confirmed: boolean;
+        };
+        Returns: string;
+      };
+      post_answer: { Args: { p_question: string; p_body: string; p_anonymous?: boolean }; Returns: string };
+      post_reply: { Args: { p_answer: string; p_body: string; p_anonymous?: boolean }; Returns: string };
       record_data_export: { Args: Record<string, never>; Returns: string };
       admin_execute_deletion: { Args: { p_request: string }; Returns: undefined };
       set_retention_days: { Args: { p_key: string; p_days: number }; Returns: undefined };

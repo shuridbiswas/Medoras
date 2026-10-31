@@ -58,7 +58,7 @@ export function ClaimButton({ reportId }: { reportId: string }) {
 export function ReportDecisionForm({ reportId, targetType }: { reportId: string; targetType: string }) {
   const [state, action, pending] = useActionState(moderateReport, idle);
   const [decision, setDecision] = useState("dismiss");
-  const canRemove = targetType === "post" || targetType === "comment";
+  const canRemove = ["post", "comment", "question", "answer", "reply", "community"].includes(targetType);
 
   return (
     <form action={action} className="space-y-3 rounded-xl border border-border bg-sand/40 p-3.5" noValidate>
@@ -70,7 +70,7 @@ export function ReportDecisionForm({ reportId, targetType }: { reportId: string;
         <select id={`d-${reportId}`} name="decision" value={decision} onChange={(e) => setDecision(e.target.value)} className={control}>
           <option value="dismiss">Dismiss (no action)</option>
           <option value="warn">Warn the member</option>
-          {canRemove ? <option value="remove_content">Remove the {targetType} and notify the member</option> : null}
+          {canRemove ? <option value="remove_content">{targetType === "community" ? "Close the community and notify its creator" : `Remove the ${targetType} and notify the member`}</option> : null}
           <option value="suspend">Suspend the member</option>
         </select>
       </div>

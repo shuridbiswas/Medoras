@@ -245,3 +245,27 @@ Needs the two Phase 4A migrations applied, email delivery set up, and two accoun
 2. Download my data: a JSON file with your own data only. Deleting requests need a recent sign-in.
 3. Request account deletion: the page shows the date (30 days) and lets you cancel. An administrator carries it out after that date.
 4. Read `/privacy`, `/terms`, `/community-guidelines`: each starts with the "draft, not legal advice" notice.
+
+## 15. Communities, forums and anonymity (Phase 6)
+
+Needs the Phase 6 migration applied and three accounts (A, B, C). Make C an administrator (see `DEPLOYMENT.md`).
+
+**Private community**
+1. As A open `/communities/create`, make a *Private* community. You become the owner; the page shows the rules and "You are the owner".
+2. As B open `/communities`: A's community is listed. Open it: you see the description and rules, "This community is private", and no posts, announcements or members. `/communities/<slug>/members` says the member list is private.
+3. B presses "Ask to join". A gets a notification and sees the request under Members. A approves; B is told, can now read and post. Repeat with a decline and with B withdrawing.
+4. As A make B a moderator. As B remove a member (with a reason), then as A allow them back. The moderator log lists each step and cannot be edited. C (administrator) can read it; a plain member cannot.
+5. Post in the community as A. Sign in as C (not a member): `/post/<id>` for that post is a 404, and C cannot like or comment.
+6. As B (moderator) remove A's post with a reason: A is notified and the log records the reason only.
+
+**Public community and reports**
+1. Make a *Public* community: B joins with one press and can post. Report the community as C: as the administrator close it from `/admin/reports`; it disappears from the directory and its creator is told.
+
+**Forums**
+1. As A open `/forums/ask`. Post without ticking the confirmation: refused. Tick it and post a question under your name; it appears in `/forums`, its topic page and search.
+2. As B answer it, reply, mark A's other answer helpful (you cannot mark your own), follow and save the question. A accepts B's answer; B is notified.
+3. **Anonymous:** as A ask a question ticking "Post anonymously" (read "What anonymous means"). As B it shows "Anonymous member" with no name, photo, role or link; it is absent from A's profile Activity tab and from A's public lists. As A it appears under "My questions" with a note that it is yours, and A can delete it or accept an answer. B's answer notifies A; open A's notifications and confirm they do not name an anonymous answerer.
+4. As B report the anonymous question (reason "Identifiable patient information"). As C (administrator) open `/admin/reports`: the report says "Anonymous member (identity protected)". Warn, then suspend: A receives the notice and is held at `/suspended`. C was never shown who A is.
+5. As A block B (and then B block A): each stops seeing the other's questions, answers and replies, including anonymous ones, and answering looks the same as answering something deleted.
+6. Download my data as A: the JSON includes A's anonymous question under "forums", and nothing from others.
+7. Read the notice on every forum page: it says the forums are not a clinical consultation, diagnosis or patient-specific second opinion.

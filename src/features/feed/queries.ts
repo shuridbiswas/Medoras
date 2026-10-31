@@ -115,7 +115,7 @@ export async function getPostsByIds(
 
 export async function getFeedPage(
   viewerId: string,
-  { cursor, category, authorId, scope }: FeedRequest = {},
+  { cursor, category, authorId, scope, communityId }: FeedRequest = {},
   pageSize = FEED_PAGE_SIZE,
 ): Promise<FeedPage & { failed?: boolean }> {
   const supabase = await createClient();
@@ -142,6 +142,9 @@ export async function getFeedPage(
   if (hidden.length > 0) query = query.not("author_id", "in", `(${hidden.join(",")})`);
   if (category) query = query.eq("category", category);
   if (authorId) query = query.eq("author_id", authorId);
+  // The home feed and the Following tab carry no community posts; each community has its own list.
+  if (communityId) query = query.eq("community_id", communityId);
+  else if (!authorId) query = query.is("community_id", null);
   if (cursor) {
     // Strictly older than the last post seen; the id breaks ties between equal timestamps.
     const [createdAt, id] = cursor.split("|");

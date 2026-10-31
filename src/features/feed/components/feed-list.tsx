@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { PostCard } from "@/features/feed/components/post-card";
+import { ModeratorRemovePost } from "@/features/communities/components/moderator-remove";
 import { loadMorePosts } from "@/features/feed/actions";
 import { Button } from "@/components/ui/button";
 import type { FeedPage, FeedPost } from "@/features/feed/types";
@@ -17,12 +18,17 @@ export function FeedList({
   category,
   authorId,
   scope,
+  communityId,
+  moderatorOfCommunity,
   empty,
 }: {
   initial: FeedPage;
   category?: PostCategory;
   authorId?: string;
   scope?: "following";
+  communityId?: string;
+  /** True when the viewer moderates `communityId`: other members' posts get a removal control. */
+  moderatorOfCommunity?: boolean;
   empty: React.ReactNode;
 }) {
   const [extra, setExtra] = useState<FeedPost[]>([]);
@@ -43,7 +49,7 @@ export function FeedList({
     if (!cursor) return;
     setError(null);
     startTransition(async () => {
-      const result = await loadMorePosts({ cursor, category, authorId, scope });
+      const result = await loadMorePosts({ cursor, category, authorId, scope, communityId });
       if (result.ok) {
         setExtra((list) => [...list, ...result.page.posts]);
         setCursor(result.page.nextCursor);
@@ -67,6 +73,14 @@ export function FeedList({
               post={post}
               onDeleted={(id) =>
                 setRemoved((set) => new Set(set).add(id))
+              }
+              moderation={
+                moderatorOfCommunity && communityId && !post.isOwn ? (
+                  <ModeratorRemovePost
+                    postId={post.id}
+                    onRemoved={(id) => setRemoved((set) => new Set(set).add(id))}
+                  />
+                ) : null
               }
             />
           </li>

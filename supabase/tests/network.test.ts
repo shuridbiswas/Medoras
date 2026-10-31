@@ -359,7 +359,7 @@ describe("saved items", () => {
     expect(
       await failure("insert into public.saved_items (user_id, item_type, item_id) values ($1, 'post', $2)", [bob, "11111111-1111-1111-1111-111111111111"]),
     ).toMatch(/row-level security/i);
-    expect(await failure("insert into public.saved_items (user_id, item_type, item_id) values ($1, 'job', $2)", [bob, post])).toMatch(/check constraint/i);
+    expect(await failure("insert into public.saved_items (user_id, item_type, item_id) values ($1, 'job', $2)", [bob, post])).toMatch(/row-level security/i); // only known item types pass the policy
   });
 
   it("lets only the owner remove a save", async () => {

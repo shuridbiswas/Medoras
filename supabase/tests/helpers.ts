@@ -140,6 +140,11 @@ export async function createHarness() {
       delete from public.follows;
       delete from public.connections;
       delete from public.member_blocks;
+      alter table public.community_audit_logs disable trigger community_audit_logs_append_only;
+      delete from public.communities;
+      alter table public.community_audit_logs enable trigger community_audit_logs_append_only;
+      delete from public.forum_questions;
+      delete from public.forum_identity;
       delete from public.posts;
       delete from public.notification_preferences;
     `);

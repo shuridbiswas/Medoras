@@ -61,13 +61,36 @@ export default function Page() {
 
       <h2>Your tools</h2>
       <ul>
-        <li><strong>Report</strong> a post, comment or profile from the Report button on it.</li>
+        <li>
+          <strong>Report</strong> a post, comment, profile, forum question, answer or reply, or a community, from the
+          Report button on it.
+        </li>
         <li><strong>Mute</strong> a member to stop seeing their posts and comments. They aren&apos;t told.</li>
         <li>
           <strong>Block</strong> a member to end any connection, stop them from connecting, following, liking or
           commenting on your posts, and keep their posts out of your feed. They aren&apos;t told.
         </li>
         <li>You can manage both lists in Settings.</li>
+      </ul>
+
+      <h2>Communities and forums</h2>
+      <ul>
+        <li>
+          <strong>Communities</strong> are run by their owners and moderators, who can approve requests to join, remove
+          posts and members, and publish announcements and rules. Their actions are recorded in a moderator log that
+          Medyra staff can read. Community rules sit on top of these guidelines and can&apos;t replace them. In a private
+          community, posts and the member list are visible only to members.
+        </li>
+        <li>
+          <strong>Forum answers are peer perspectives for learning.</strong> They are not a clinical consultation, a
+          diagnosis or a patient-specific second opinion, and the people answering may not be who they say they are.
+        </li>
+        <li>
+          <strong>Anonymous posts</strong> hide your name and profile from other members. Medyra keeps a private record
+          of who wrote them so it can respond to abuse and so you can edit, delete or accept answers; the Medyra team can
+          act on an account behind a reported anonymous post without being shown who it is. This is not anonymity from
+          Medyra, and details you write can still identify you.
+        </li>
       </ul>
 
       <h2>When we act</h2>

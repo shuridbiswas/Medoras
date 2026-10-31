@@ -48,6 +48,16 @@ These need a signed-in browser session, a real inbox (email delivery configured)
 9. Upstash-backed rate limits (needs credentials; the database limits are active regardless).
 10. Re-run the RLS review against the live project with `supabase db advisors` after the migrations are applied.
 
+## 2b. Phase 6 addendum (communities and forums)
+
+Date: 3 November 2026. Added after the Phase 4A review above; **not yet applied to any live database or deployed**.
+
+- New migration `20261103000001_communities_and_forums.sql` (apply after the two Phase 4A migrations; it replaces `submit_report` and `moderate_report`, widens the report, saved-item and notification constraints, and changes the `posts`, `post_comments`, `post_likes` and `saved_items` policies).
+- Verified: `npm run lint`, `npm run typecheck`, `npm run build` and `npm test` (the database policy tests run all migrations in PGlite, 43 of them are new: private community permissions, moderator roles and audit, anonymity leakage sweep, blocks, voting, acceptance, reports and moderation of anonymous content, account deletion).
+- **Not verified:** nothing in Phase 6 has run against a live Supabase project or in a browser with real accounts. The checklist is TESTING.md section 15. Run `supabase db advisors` after applying the migration (especially the new security definer functions and `private` grants).
+- New or changed risks to state to testers: anonymity is from other members, not from Medyra (a private record exists; staff with database access can read it; it may be disclosed under legal process); staff who suspend an anonymous writer can infer who it was from timing in a very small community; comment removal by community moderators has a database function but no screen yet; community owners are not verified or trained, and a community can be closed only by a Medyra administrator through a report; the legal drafts mention communities and anonymous posting but still need counsel's review (minors, retention of the private record, disclosure policy).
+- Blockers added: decide the disclosure policy and retention for `forum_identity` with counsel; staff the moderation queue for forum reports (patient-privacy reports are time sensitive); add trigram or full-text language configs (French) before launch in Quebec; consider a "report" path to community moderators in addition to Medyra staff.
+
 ## 3. What was built
 
 | Area | What exists |

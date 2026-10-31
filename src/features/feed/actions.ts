@@ -76,6 +76,7 @@ export async function createPost(
   const parsed = postSchema.safeParse({
     category: str(formData, "category"),
     body: str(formData, "body"),
+    communityId: str(formData, "communityId") || undefined,
   });
   if (!parsed.success) return invalid(parsed.error);
 
@@ -87,12 +88,18 @@ export async function createPost(
     author_id: user.id,
     category: parsed.data.category,
     body: parsed.data.body,
+    ...(parsed.data.communityId ? { community_id: parsed.data.communityId } : {}),
   });
   if (error) {
+    // 42501: not a member of that community (or it was closed). Say so without detail.
+    if (error.code === "42501" && parsed.data.communityId) {
+      return { status: "error", message: "You can only post in communities you have joined." };
+    }
     reportError("posts.insert", error);
     return { status: "error", message: friendly(error) };
   }
 
+  if (parsed.data.communityId) revalidatePath("/communities/[slug]", "page");
   refresh(profile.username);
   return { status: "success", message: "Posted.", nonce: Date.now() };
 }
@@ -173,12 +180,11 @@ export async function setLike(
     const { error } = await supabase
       .from("post_likes")
       .insert({ post_id: postId, user_id: user.id });
-    // 23505: already liked. 23503: the post was deleted.
+    // 23505: already liked. 23503 / 42501: the post was deleted or is no longer visible to this member.
     if (error && error.code !== "23505") {
-      if (error.code !== "23503") reportError("post_likes.insert", error);
-      return fail(
-        error.code === "23503" ? "That post is no longer available." : GENERIC_ERROR,
-      );
+      const gone = error.code === "23503" || error.code === "42501";
+      if (!gone) reportError("post_likes.insert", error);
+      return fail(gone ? "That post is no longer available." : GENERIC_ERROR);
     }
   } else {
     const { error } = await supabase
@@ -217,9 +223,10 @@ export async function addComment(
     .select("id, post_id, body, created_at")
     .single();
   if (error || !data) {
-    if (error && error.code !== "23503") reportError("post_comments.insert", error);
+    const gone = error?.code === "23503" || error?.code === "42501";
+    if (error && !gone) reportError("post_comments.insert", error);
     return fail(
-      error?.code === "23503"
+      gone
         ? "That post is no longer available."
         : friendly(error),
     );

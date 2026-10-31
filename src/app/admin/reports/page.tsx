@@ -84,9 +84,14 @@ async function ReportsContent({ searchParams }: Props) {
               const targetHref =
                 r.target_type === "post"
                   ? `/post/${r.target_id}`
-                  : r.target_type === "profile" && r.target?.username
-                    ? `/profile/${r.target.username}`
-                    : null;
+                  : r.target_type === "question"
+                    ? `/forums/${r.target_id}`
+                    : r.target_type === "profile" && r.target?.username
+                      ? `/profile/${r.target.username}`
+                      : null;
+              // Anonymous forum content has no public writer. Staff act on it without being shown who it is.
+              const anonymousTarget =
+                !r.target && ["question", "answer", "reply"].includes(r.target_type);
               return (
                 <li key={r.id} className="space-y-3 rounded-2xl border border-border bg-surface p-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -104,7 +109,7 @@ async function ReportsContent({ searchParams }: Props) {
                     <div>
                       <dt className="text-xs text-muted-foreground">About</dt>
                       <dd>
-                        {personName(r.target)}
+                        {anonymousTarget ? "Anonymous member (identity protected)" : personName(r.target)}
                         {r.target?.username ? <span className="text-muted-foreground"> @{r.target.username}</span> : null}
                       </dd>
                     </div>

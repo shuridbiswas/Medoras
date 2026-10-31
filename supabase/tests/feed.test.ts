@@ -200,7 +200,7 @@ describe("likes", () => {
         "11111111-1111-1111-1111-111111111111",
         bob,
       ]),
-    ).toMatch(/foreign key/i);
+    ).toMatch(/row-level security/i); // a missing post is not "visible", so the policy refuses it
   });
 
   it("lets members remove only their own like", async () => {

@@ -395,13 +395,13 @@ describe("blocking is enforced for liking and commenting, in both directions", (
     expect(await h.failure("insert into public.post_comments (post_id, author_id, body) values ($1, $2, 'hi')", [post, alice])).toMatch(/row-level security/i);
   });
 
-  it("leaves everyone else free to interact, and a missing post still reports a foreign key error", async () => {
+  it("leaves everyone else free to interact, and a missing post is refused as not visible", async () => {
     const post = await h.newPost(alice);
     await h.asUser(alice);
     await h.db.query("insert into public.member_blocks (blocker_id, blocked_id) values ($1, $2)", [alice, bob]);
     await h.asUser(carol);
     expect(await h.failure("insert into public.post_comments (post_id, author_id, body) values ($1, $2, 'hello')", [post, carol])).toBeNull();
-    expect(await h.failure("insert into public.post_likes (post_id, user_id) values ('11111111-1111-1111-1111-111111111111', $1)", [carol])).toMatch(/foreign key/i);
+    expect(await h.failure("insert into public.post_likes (post_id, user_id) values ('11111111-1111-1111-1111-111111111111', $1)", [carol])).toMatch(/row-level security/i);
   });
 
   it("allows interaction again after unblocking", async () => {

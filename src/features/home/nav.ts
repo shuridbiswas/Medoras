@@ -2,6 +2,7 @@ import {
   Bookmark,
   Briefcase,
   GraduationCap,
+  MessageCircleQuestion,
   Home,
   Settings,
   User,
@@ -31,9 +32,9 @@ export function appNav(username: string | null): AppNavItem[] {
       label: "Communities",
       href: "/communities",
       icon: Users,
-      soon: true,
       group: "primary",
     },
+    { key: "forums", label: "Forums", href: "/forums", icon: MessageCircleQuestion, group: "primary" },
     {
       key: "mentorship",
       label: "Mentorship",
