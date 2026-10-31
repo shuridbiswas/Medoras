@@ -141,7 +141,7 @@ describe("exportMemberData", () => {
     // Every query is scoped to the member by one of the ownership columns.
     for (const op of db.ops) {
       const scoped = op.filters.some(
-        ([c, v]) => ["id", "user_id", "profile_id", "author_id", "recipient_id", "blocker_id", "muter_id", "member_id", "reporter_id", "or"].includes(c) && (v === ME || (typeof v === "string" && v.includes(ME))),
+        ([c, v]) => ["id", "user_id", "profile_id", "author_id", "recipient_id", "blocker_id", "muter_id", "member_id", "reporter_id", "sender_id", "or"].includes(c) && (v === ME || (typeof v === "string" && v.includes(ME))),
       );
       expect(scoped, `${op.table} is not scoped to the member`).toBe(true);
     }

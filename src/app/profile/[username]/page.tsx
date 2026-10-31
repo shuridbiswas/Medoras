@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { MessageSquare } from "lucide-react";
+import { LinkButton } from "@/components/ui/link-button";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { AppFrame } from "@/components/layout/app-frame";
@@ -97,6 +99,12 @@ async function ProfileContent({ params }: Props) {
             initial={relationship}
             className="justify-center"
           />
+        )}
+        {blockedByMe ? null : (
+          <LinkButton href={`/messages?to=${profile.id}`} variant="outline" className="h-9 px-4 text-sm">
+            <MessageSquare className="size-4" aria-hidden="true" />
+            Message
+          </LinkButton>
         )}
         <div className="flex flex-wrap items-start justify-center gap-x-5 gap-y-2">
           <BlockButton memberId={profile.id} name={name} blocked={blockedByMe} />

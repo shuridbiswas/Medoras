@@ -58,7 +58,7 @@ Conventions:
 - Never invent credentials. Secrets only via `.env.local` (see `.env.example`); never commit real values.
 - Before finishing work: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
-## Current scope: Phases 1 to 4b, 4A and 6 (done)
+## Current scope: Phases 1 to 4b, 4A, 6 and 7 (done)
 
 Phase 1: public welcome page at `/welcome` and informative placeholders (`/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`; the legal pages are placeholders, not real policies).
 
@@ -150,7 +150,24 @@ Forums architecture ("Ask, Answer, Discover"):
 - Limits: 5 questions, 30 answers and 60 replies an hour per member (counted on the private record, so anonymity does not bypass them).
 - Tests: `supabase/tests/communities-forums.test.ts` (PGlite: private permissions, moderator roles, bans, audit, anonymity leakage sweep, blocks, voting, acceptance, reports and moderation of anonymous content), `src/features/communities/*.test.*`, `src/features/forums/*.test.*`. The `private.post_visible`-based policies changed one old behaviour: liking or commenting on a missing post is now refused by RLS (42501) instead of a foreign-key error.
 
-Out of scope until later phases: mentorship matching, messaging, jobs, automated or AI moderation, post media, AI features, per-field privacy settings, username changes, organization profiles (follows are member-only), mentions.
+Phase 7: private messaging and professional mentorship (migration `20261104000001_messaging_and_mentorship.sql`). Routes `/messages`, `/messages/[conversationId]`, `/mentorship`, `/mentorship/find`, `/mentorship/become-a-mentor`, `/mentorship/requests`, `/mentorship/my-mentorships`, `/mentorship/[mentorId]`.
+
+Messaging architecture (`src/features/messaging/`):
+
+- Tables `conversations` (direct or group), `conversation_participants` (status active / pending / declined / left, `last_read_at`), `messages`. **Clients cannot insert conversations or participants**: they come from `start_direct_conversation / create_group_conversation / add_group_member / respond_to_message_request / leave_conversation`. Messages are inserted directly under RLS (sender = session, active participant, `private.can_send_in_conversation`).
+- Access is participant-only through `private.can_read_conversation`; staff and outsiders get nothing, and reporting a message (`submit_report('message', …)`, 300-character snapshot) is the only way staff see one. Admins remove a reported message through `moderate_report`.
+- **Message requests:** a first message to a non-connection leaves the recipient `pending`; they read it, accept or decline. Until accepted the sender may send 2 messages (trigger `enforce_message_limits`) and the recipient cannot reply. Declined rows are invisible to the sender. Every refusal in `start_direct_conversation` uses the same sentence so a block or decline is never revealed. Blocks stop sending both ways (history stays readable). Groups are made only from the creator's connections (max 20).
+- Unread = messages from others newer than `last_read_at`; the recipient's marker starts at the epoch (not now) so the first message counts. `Thread` refreshes from Supabase Realtime (`messages` is added to the `supabase_realtime` publication when it exists; RLS filters events) and polls every 15 s if Realtime is unavailable; it fails soft.
+- Never describe messaging as end-to-end encrypted (`messaging/content.ts`). No push or email notifications for messages yet; only a request notification.
+
+Mentorship architecture (`src/features/mentorship/`):
+
+- Tables `mentor_profiles`, `mentor_availability` (internal weekly windows, no calendar integration), `mentorship_requests`, `mentorships`, `mentorship_feedback`. Expertise, experience and organisation are **self-declared**: the UI says so, every mentor shows the shared "Unverified" chip, and a mentor must tick an acknowledgement (`acknowledged` CHECK) that they are not listing as a clinical supervisor. Never add accreditation or verification wording without a real process. Students (by member type or career stage) cannot list (policy `private.can_list_as_mentor`).
+- Flow: mentee request (goals 20-1500, 5 a day, one pending per pair, blocked pairs refused) → mentor `decide_mentorship_request` (capacity check, opens or reopens the direct conversation, notifies the mentee) → `set_mentorship_status` (only the mentor pauses/resumes; either finishes) → feedback (completed only, one each, private to the two people). Mentors and requests use the existing `mentorship_event` notification.
+- Reports of a mentor listing use `submit_report('mentor', …)`; removal deletes the listing.
+- Tests: `supabase/tests/messaging-mentorship.test.ts` (three accounts, blocks, unauthorized access, requests, groups, capacity, feedback privacy), `src/features/{messaging,mentorship}/*.test.*`. `h.reset()` in `supabase/tests/helpers.ts` must list new tables.
+
+Out of scope until later phases: employer and job features, jobs, automated or AI moderation, post media, AI features, per-field privacy settings, username changes, organization profiles (follows are member-only), mentions.
 
 ## Infrastructure (Netlify, Sentry, Upstash, Resend, ProductBridge, Pinecone)
 
@@ -173,7 +190,7 @@ Read ARCHITECTURE.md for decisions and risks. Conventions:
 2. **Phase 3 (done):** Professional profiles.
 3. **Phase 4 (done):** Member home page and community feed (posts, likes, comments, categories, search).
 4. **Phase 4b (connections, follows, blocking, saved posts, notifications: done):** still to do: communities, reporting and moderation tooling.
-5. **Phase 5:** Mentorship matching, verification badges. (Forums with the anonymous option and communities shipped in Phase 6.)
+5. **Phase 5:** Verification badges. (Forums and communities shipped in Phase 6; messaging and mentorship in Phase 7.)
 6. **Phase 6:** Careers and employer profiles, articles/research, stories.
 7. **Phase 7:** Nearby communities and events, mental-health and peer-support space with human + AI-assisted moderation, reporting/blocking/muting.
 

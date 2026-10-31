@@ -269,3 +269,20 @@ Needs the Phase 6 migration applied and three accounts (A, B, C). Make C an admi
 5. As A block B (and then B block A): each stops seeing the other's questions, answers and replies, including anonymous ones, and answering looks the same as answering something deleted.
 6. Download my data as A: the JSON includes A's anonymous question under "forums", and nothing from others.
 7. Read the notice on every forum page: it says the forums are not a clinical consultation, diagnosis or patient-specific second opinion.
+
+## 16. Messaging and mentorship (Phase 7)
+
+Needs the Phase 7 migration applied and three accounts (A, B, C). Connect A and B in the Network first. Turn Realtime on for the project to see live updates; otherwise they appear within 15 seconds.
+
+**Messages**
+1. As A open B's profile and press Message; send a note. Because A and B are connected it opens straight away; B sees it in `/messages` with an unread count. As C (not part of it) `/messages/<id>` is a 404.
+2. As A message C (not connected). C sees it under *Requests* with a notification and can read it, but cannot reply. A can send one more message and then is told C hasn't accepted. C accepts; both can write. Repeat with Decline: A is told nothing, cannot send more, and "Message" to C says "You can't message this member."
+3. As B block A: neither can send; unblock restores it. Report one of A's messages as B; as an administrator open `/admin/reports`, see the excerpt (not the conversation) and remove the message.
+4. Make a group from your connections; add one more; leave; try to add a non-connection (refused). Search the inbox for a word from a message.
+5. Keep the thread open in two windows: a message sent in one appears in the other without reloading. Read the notice: messages are private but not end-to-end encrypted.
+
+**Mentorship**
+1. As an educator/professional (A) open `/mentorship/become-a-mentor`: the form refuses without the self-declaration tick. Save; add two availability windows. As a student account the page says listings are for graduates, and the database refuses a forced attempt.
+2. As B open `/mentorship/find`, filter by profession/topic/language/experience/format, open A's page (every claim is labelled self-declared, chip says Unverified) and send a request with goals. A is notified; `/mentorship/requests` shows it; a duplicate is refused.
+3. A accepts: `/mentorship/my-mentorships` shows it active and a conversation exists. With capacity 1, a second request cannot be accepted. A pauses and resumes (B cannot). Either finishes; both leave feedback; C cannot see any of it.
+4. Decline another request with a note: the mentee sees the note. Report A's listing as C; an administrator removes it.

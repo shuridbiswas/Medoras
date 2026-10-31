@@ -2,7 +2,7 @@ import { z } from "zod";
 import { APPEAL_MAX, REPORT_DETAILS_MAX, REPORT_REASON_VALUES } from "@/features/safety/options";
 
 export const reportSchema = z.object({
-  targetType: z.enum(["post", "comment", "profile", "question", "answer", "reply", "community"], {
+  targetType: z.enum(["post", "comment", "profile", "question", "answer", "reply", "community", "message", "mentor"], {
     error: "Choose what you are reporting.",
   }),
   targetId: z.uuid("That item is not valid."),

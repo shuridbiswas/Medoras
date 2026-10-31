@@ -58,6 +58,16 @@ Date: 3 November 2026. Added after the Phase 4A review above; **not yet applied 
 - New or changed risks to state to testers: anonymity is from other members, not from Medyra (a private record exists; staff with database access can read it; it may be disclosed under legal process); staff who suspend an anonymous writer can infer who it was from timing in a very small community; comment removal by community moderators has a database function but no screen yet; community owners are not verified or trained, and a community can be closed only by a Medyra administrator through a report; the legal drafts mention communities and anonymous posting but still need counsel's review (minors, retention of the private record, disclosure policy).
 - Blockers added: decide the disclosure policy and retention for `forum_identity` with counsel; staff the moderation queue for forum reports (patient-privacy reports are time sensitive); add trigram or full-text language configs (French) before launch in Quebec; consider a "report" path to community moderators in addition to Medyra staff.
 
+## 2c. Phase 7 addendum (messaging and mentorship)
+
+Date: 4 November 2026. **Not yet applied to any live database or deployed.**
+
+- New migration `20261104000001_messaging_and_mentorship.sql` (after the Phase 6 migration; replaces `submit_report` and `moderate_report` again to add message and mentor targets, adds Realtime publication of `messages`).
+- Verified: lint, typecheck, build, and 945 tests, including 22 database tests (three accounts, blocks, unauthorized access, requests, groups, capacity, privacy of feedback). A bug found by those tests (a first message counted as read) is fixed.
+- **Not verified:** nothing has run against a live Supabase project, Realtime delivery has not been exercised, and no browser walkthrough has been done (TESTING.md section 16).
+- Honest limits to tell testers: messages are not end-to-end encrypted and staff with database access could read them; mentor credentials are self-declared and unverified; there is no email or push notification for messages; unread counts are approximate for very long unread backlogs; the mentor's "capacity" is stated, not a live count of free places; there is no message editing, attachments, typing indicators or group-admin removal of members.
+- Blockers added: a retention policy for messages and for ended mentorships (counsel), staffing for message reports (harassment and grooming risks are higher in private messages; consider rate limits and keyword-free safeguards before launch), a decision on whether minors may message adults, and message-content limits for students approaching professionals.
+
 ## 3. What was built
 
 | Area | What exists |

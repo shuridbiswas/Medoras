@@ -83,6 +83,10 @@ export function makeDb(handler: Handler = () => undefined) {
         op.filters.push([`${column} contains`, value]);
         return chain;
       },
+      filter: (column: string, operator: string, value: unknown) => {
+        op.filters.push([`${column} ${operator}`, value]);
+        return chain;
+      },
       or: (expression: string) => {
         op.filters.push(["or", expression]);
         return chain;

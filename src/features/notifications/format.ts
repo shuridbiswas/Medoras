@@ -16,7 +16,7 @@ export type NotificationActor = {
 export type NotificationItem = {
   id: string;
   type: NotificationType;
-  entity_type: "post" | "connection" | "community" | "mentorship" | "forum_question" | null;
+  entity_type: "post" | "connection" | "community" | "mentorship" | "forum_question" | "conversation" | null;
   entity_id: string | null;
   created_at: string;
   read_at: string | null;
@@ -57,6 +57,8 @@ export function describeAction(type: NotificationType): string {
       return "replied to your answer";
     case "forum_answer_accepted":
       return "accepted your answer";
+    case "message_request":
+      return "sent you a message request";
   }
 }
 
@@ -75,6 +77,10 @@ export function notificationHref(n: NotificationItem): string {
     case "forum_reply":
     case "forum_answer_accepted":
       return n.entity_type === "forum_question" && n.entity_id ? `/forums/${n.entity_id}` : "/notifications";
+    case "message_request":
+      return n.entity_type === "conversation" && n.entity_id ? `/messages/${n.entity_id}` : "/messages";
+    case "mentorship_event":
+      return "/mentorship/requests";
     case "community_join_request":
     case "community_request_approved":
     case "community_post_removed":

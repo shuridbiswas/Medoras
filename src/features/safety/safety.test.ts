@@ -62,7 +62,7 @@ describe("submitReport", () => {
 
   it("rejects unknown targets, reasons, bad ids and over-long details without calling the database", async () => {
     for (const bad of [
-      { ...valid, targetType: "message" },
+      { ...valid, targetType: "invoice" },
       { ...valid, reason: "dislike" },
       { ...valid, targetId: "nope" },
       { ...valid, details: "x".repeat(1001) },

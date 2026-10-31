@@ -161,20 +161,21 @@ export type NotificationType =
   | "community_post_removed"
   | "forum_answer"
   | "forum_reply"
-  | "forum_answer_accepted";
+  | "forum_answer_accepted"
+  | "message_request";
 
 export type NotificationRow = {
   id: string;
   recipient_id: string;
   actor_id: string | null;
   type: NotificationType;
-  entity_type: "post" | "connection" | "community" | "mentorship" | "forum_question" | null;
+  entity_type: "post" | "connection" | "community" | "mentorship" | "forum_question" | "conversation" | null;
   entity_id: string | null;
   created_at: string;
   read_at: string | null;
 };
 
-export type ReportTargetType = "post" | "comment" | "profile" | "question" | "answer" | "reply" | "community";
+export type ReportTargetType = "post" | "comment" | "profile" | "question" | "answer" | "reply" | "community" | "message" | "mentor";
 export type ReportStatus = "open" | "reviewing" | "actioned" | "dismissed";
 
 export type ReportRow = {
@@ -375,6 +376,97 @@ export type ForumReplyRow = {
   created_at: string;
 };
 
+export type ConversationKind = "direct" | "group";
+export type ParticipantStatus = "active" | "pending" | "declined" | "left";
+
+export type ConversationRow = {
+  id: string;
+  kind: ConversationKind;
+  title: string | null;
+  created_by: string | null;
+  direct_key: string | null;
+  created_at: string;
+  last_message_at: string;
+};
+
+export type ParticipantRow = {
+  conversation_id: string;
+  user_id: string;
+  status: ParticipantStatus;
+  role: "admin" | "member";
+  joined_at: string;
+  last_read_at: string;
+};
+
+export type MessageRow = {
+  id: string;
+  conversation_id: string;
+  sender_id: string | null;
+  body: string;
+  created_at: string;
+};
+
+export type MentorFormat = "video" | "phone" | "chat" | "in_person";
+
+export type MentorProfileRow = {
+  user_id: string;
+  bio: string;
+  expertise: string;
+  experience_years: number;
+  organization: string | null;
+  topics: string[];
+  languages: string[];
+  capacity: number;
+  session_formats: MentorFormat[];
+  accepting: boolean;
+  acknowledged: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MentorAvailabilityRow = {
+  id: string;
+  mentor_id: string;
+  weekday: number;
+  start_minute: number;
+  end_minute: number;
+  timezone: string;
+};
+
+export type MentorshipRequestRow = {
+  id: string;
+  mentee_id: string;
+  mentor_id: string;
+  goals: string;
+  preferred_format: MentorFormat | null;
+  status: "pending" | "accepted" | "declined";
+  decline_note: string | null;
+  created_at: string;
+  decided_at: string | null;
+};
+
+export type MentorshipStatus = "active" | "paused" | "completed" | "ended";
+
+export type MentorshipRow = {
+  id: string;
+  request_id: string | null;
+  mentor_id: string;
+  mentee_id: string;
+  conversation_id: string | null;
+  status: MentorshipStatus;
+  started_at: string;
+  ended_at: string | null;
+};
+
+export type MentorshipFeedbackRow = {
+  id: string;
+  mentorship_id: string;
+  author_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+};
+
 type Updatable<Row, Omit_ extends keyof Row> = Partial<Omit<Row, Omit_>>;
 
 export type Database = {
@@ -569,6 +661,44 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      conversations: { Row: ConversationRow; Insert: never; Update: never; Relationships: [] };
+      conversation_participants: {
+        Row: ParticipantRow;
+        Insert: never;
+        Update: Partial<Pick<ParticipantRow, "last_read_at">>;
+        Relationships: [];
+      };
+      messages: {
+        Row: MessageRow;
+        Insert: Pick<MessageRow, "conversation_id" | "body"> & { sender_id: string };
+        Update: never;
+        Relationships: [];
+      };
+      mentor_profiles: {
+        Row: MentorProfileRow;
+        Insert: Omit<MentorProfileRow, "created_at" | "updated_at">;
+        Update: Partial<Omit<MentorProfileRow, "user_id" | "created_at" | "updated_at">>;
+        Relationships: [];
+      };
+      mentor_availability: {
+        Row: MentorAvailabilityRow;
+        Insert: Omit<MentorAvailabilityRow, "id">;
+        Update: never;
+        Relationships: [];
+      };
+      mentorship_requests: {
+        Row: MentorshipRequestRow;
+        Insert: Pick<MentorshipRequestRow, "mentee_id" | "mentor_id" | "goals"> & Partial<Pick<MentorshipRequestRow, "preferred_format">>;
+        Update: never;
+        Relationships: [];
+      };
+      mentorships: { Row: MentorshipRow; Insert: never; Update: never; Relationships: [] };
+      mentorship_feedback: {
+        Row: MentorshipFeedbackRow;
+        Insert: Pick<MentorshipFeedbackRow, "mentorship_id" | "author_id" | "rating"> & Partial<Pick<MentorshipFeedbackRow, "comment">>;
+        Update: never;
+        Relationships: [];
+      };
       // Rows are created by database triggers, never by clients.
       notifications: {
         Row: NotificationRow;
@@ -617,6 +747,16 @@ export type Database = {
       };
       post_answer: { Args: { p_question: string; p_body: string; p_anonymous?: boolean }; Returns: string };
       post_reply: { Args: { p_answer: string; p_body: string; p_anonymous?: boolean }; Returns: string };
+      start_direct_conversation: { Args: { p_other: string; p_body: string }; Returns: string };
+      respond_to_message_request: { Args: { p_conversation: string; p_accept: boolean }; Returns: undefined };
+      create_group_conversation: { Args: { p_title: string; p_members: string[] }; Returns: string };
+      add_group_member: { Args: { p_conversation: string; p_user: string }; Returns: undefined };
+      leave_conversation: { Args: { p_conversation: string }; Returns: undefined };
+      decide_mentorship_request: {
+        Args: { p_request: string; p_accept: boolean; p_note?: string | null };
+        Returns: string | null;
+      };
+      set_mentorship_status: { Args: { p_mentorship: string; p_status: string }; Returns: undefined };
       record_data_export: { Args: Record<string, never>; Returns: string };
       admin_execute_deletion: { Args: { p_request: string }; Returns: undefined };
       set_retention_days: { Args: { p_key: string; p_days: number }; Returns: undefined };

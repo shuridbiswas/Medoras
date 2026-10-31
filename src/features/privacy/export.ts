@@ -70,6 +70,7 @@ export async function exportMemberData(user: Pick<User, "id" | "email" | "create
     profile, onboarding, education, experience, skills, posts, comments, likes, connections, follows,
     blocks, mutes, saved, notifications, notificationPreferences, consents, requests, notices, appeals, reports,
     communityMemberships, communityRequests, communityPosts, forum,
+    sentMessages, mentorListing, mentorshipRequests, mentorships, mentorshipFeedback,
   ] = await Promise.all([
     section(() => db.from("profiles").select("*").eq("id", me).maybeSingle()),
     section(() => db.from("onboarding_preferences").select("*").eq("user_id", me).maybeSingle()),
@@ -95,6 +96,12 @@ export async function exportMemberData(user: Pick<User, "id" | "email" | "create
     section(() => db.from("community_requests").select("community_id, message, status, created_at").eq("user_id", me).limit(LIMIT)),
     section(() => db.from("posts").select("id, community_id").eq("author_id", me).not("community_id", "is", null).limit(LIMIT)),
     forumSection(db, me),
+    // Messages you sent. Messages other people sent to you stay theirs and are not exported.
+    section(() => db.from("messages").select("id, conversation_id, body, created_at").eq("sender_id", me).limit(LIMIT)),
+    section(() => db.from("mentor_profiles").select("*").eq("user_id", me).maybeSingle()),
+    section(() => db.from("mentorship_requests").select("*").or(`mentee_id.eq.${me},mentor_id.eq.${me}`).limit(LIMIT)),
+    section(() => db.from("mentorships").select("*").or(`mentee_id.eq.${me},mentor_id.eq.${me}`).limit(LIMIT)),
+    section(() => db.from("mentorship_feedback").select("*").eq("author_id", me).limit(LIMIT)),
   ]);
 
   return {
@@ -127,5 +134,10 @@ export async function exportMemberData(user: Pick<User, "id" | "email" | "create
     community_join_requests: communityRequests,
     community_post_ids: communityPosts,
     forums: forum,
+    messages_you_sent: sentMessages,
+    mentor_listing: mentorListing,
+    mentorship_requests: mentorshipRequests,
+    mentorships,
+    mentorship_feedback_you_gave: mentorshipFeedback,
   };
 }

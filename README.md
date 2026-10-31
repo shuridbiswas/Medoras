@@ -84,7 +84,7 @@ Migrations `20261102000001_safety_and_moderation.sql` and `20261102000002_accoun
 
 Migration `20261101000001_network.sql` adds `connections`, `follows`, `member_blocks`, `saved_items` and `notifications` (all with row level security) and two in-app notification preferences. Apply it like the others.
 
-- **Layout.** Every signed-in page has a fixed sidebar on large screens (Home, Network, Communities, Mentorship, Saved, Profile; Careers and Settings below a divider; New Post), a top bar (search, notification bell with unread count, account menu) and a bottom tab bar on phones. Mentorship and Careers are marked "Soon"; Communities and Forums are live (Phase 6).
+- **Layout.** Every signed-in page has a fixed sidebar on large screens (Home, Network, Communities, Mentorship, Saved, Profile; Careers and Settings below a divider; New Post), a top bar (search, notification bell with unread count, account menu) and a bottom tab bar on phones. Only Careers is marked "Soon".
 - **`/network`** is the member directory: search by name, member type (students, professionals, researchers), field, mentorship interest, institution, country and city or region. Results are paginated (12 per page). Every card says "Unverified" because credentials are not verified yet. `/network/requests` lists requests you received and sent; `/network/connections` lists your connections with counts.
 - **Connections** are mutual: send, accept, decline, withdraw and remove. One row per pair (a duplicate or crossed request is refused), no self requests, nothing between blocked members. **Following** is separate and one-way. Counts are computed from the rows and shown on profiles; a profile also lists a member's connections.
 - **Blocking** (profile page, listed in Settings) ends any connection or follow in both directions and stops new ones. It is private: the blocked member is not told. There is still no reporting.
@@ -99,6 +99,14 @@ Migration `20261103000001_communities_and_forums.sql`. **Apply it before deployi
 - **Forums** (`/forums`, `/forums/ask`, `/forums/[id]`, `/forums/topics/[slug]`): questions, answers, replies, helpful votes, accepted answers, topic and kind filters, full-text search, following, saving, and an "Unverified" chip plus the self-reported role on each author. Framed as educational peer discussion, never as clinical consultation or a patient-specific second opinion; asking requires confirming no identifiable patient information.
 - **Anonymous posting** for questions, answers and replies: other members, search, notifications and exports never show the writer. Medyra keeps a private record so the writer can edit or delete and so abuse can be handled; staff act on reported anonymous posts without being shown who wrote them. This is anonymity from members, not from Medyra; the UI says so.
 - Reporting, blocking, muting and the admin queue are the existing ones, extended to forum content and communities. There is no automated or AI moderation.
+
+## Messaging and mentorship (Phase 7)
+
+Migration `20261104000001_messaging_and_mentorship.sql`. **Apply it before deploying**, after the Phase 6 migration. For live updates, Supabase Realtime must be enabled for the project (the migration adds `messages` to the `supabase_realtime` publication); without it the thread checks for new messages every 15 seconds.
+
+- **Messages** (`/messages`, `/messages/[conversationId]`): one-to-one and group conversations, message requests from people you aren't connected with (read before you reply, decline privately), read/unread, search by name or message text, report and block, profile links, and a mobile-first layout. Groups are made from your connections. **Messages are private to the participants but not end-to-end encrypted**, and the UI says so.
+- **Mentorship** (`/mentorship`, `/mentorship/find`, `/mentorship/become-a-mentor`, `/mentorship/requests`, `/mentorship/my-mentorships`, `/mentorship/[mentorId]`): non-students can list as mentors with self-declared expertise, experience, organisation, topics, languages, capacity, formats and weekly availability; mentees filter by profession, topic, language, experience and format, send a request with their goals, and track it. Accepting starts a mentorship and opens a conversation; mentors can pause, either person can finish, and feedback after completion is private to the two people.
+- Mentors are shown as "Unverified" and their credentials as self-declared. Mentorship here is not clinical supervision or accredited training. Scheduling is an internal list of times: no calendar integrations.
 
 ## Home feed (Phase 4)
 
@@ -143,7 +151,7 @@ Every service except Supabase is optional and quietly turns off when its variabl
 ## Routes
 
 Public: `/welcome`, `/login`, `/signup`, `/forgot-password`, `/about`, `/community-guidelines`, `/privacy`, `/terms`, `/contact`, `/auth/callback` (email links).
-Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/` (home), `/communities`, `/communities/create`, `/communities/[slug]`, `/communities/[slug]/members`, `/forums`, `/forums/ask`, `/forums/[id]`, `/forums/topics/[slug]`, `/network`, `/network/requests`, `/network/connections`, `/saved`, `/notifications`, `/post/[id]`, `/profile/[username]`, `/profile/edit`, `/settings`, `/feedback`, plus informational pages `/mentorship`, `/careers`. `/search` redirects to `/network`.
+Signed-in: `/onboarding`, `/reset-password` (from a recovery link), `/` (home), `/communities`, `/communities/create`, `/communities/[slug]`, `/communities/[slug]/members`, `/forums`, `/forums/ask`, `/forums/[id]`, `/forums/topics/[slug]`, `/messages`, `/messages/[conversationId]`, `/mentorship`, `/mentorship/find`, `/mentorship/become-a-mentor`, `/mentorship/requests`, `/mentorship/my-mentorships`, `/mentorship/[mentorId]`, `/network`, `/network/requests`, `/network/connections`, `/saved`, `/notifications`, `/post/[id]`, `/profile/[username]`, `/profile/edit`, `/settings`, `/feedback`, plus the informational page `/careers`. `/search` redirects to `/network`.
 
 ## What is verified
 

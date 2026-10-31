@@ -58,7 +58,7 @@ export function ClaimButton({ reportId }: { reportId: string }) {
 export function ReportDecisionForm({ reportId, targetType }: { reportId: string; targetType: string }) {
   const [state, action, pending] = useActionState(moderateReport, idle);
   const [decision, setDecision] = useState("dismiss");
-  const canRemove = ["post", "comment", "question", "answer", "reply", "community"].includes(targetType);
+  const canRemove = ["post", "comment", "question", "answer", "reply", "community", "message", "mentor"].includes(targetType);
 
   return (
     <form action={action} className="space-y-3 rounded-xl border border-border bg-sand/40 p-3.5" noValidate>

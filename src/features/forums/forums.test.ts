@@ -262,7 +262,7 @@ describe("notifications and reports for forum content", () => {
     for (const targetType of ["question", "answer", "reply", "community"]) {
       expect(safetySchemas.reportSchema.safeParse({ targetType, targetId: Q, reason: "spam" }).success).toBe(true);
     }
-    expect(safetySchemas.reportSchema.safeParse({ targetType: "message", targetId: Q, reason: "spam" }).success).toBe(false);
+    expect(safetySchemas.reportSchema.safeParse({ targetType: "invoice", targetId: Q, reason: "spam" }).success).toBe(false);
   });
 });
 

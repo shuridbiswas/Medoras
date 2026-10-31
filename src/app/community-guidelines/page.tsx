@@ -93,6 +93,21 @@ export default function Page() {
         </li>
       </ul>
 
+      <h2>Messages and mentorship</h2>
+      <ul>
+        <li>
+          <strong>Messages are private to the people in a conversation, but not end-to-end encrypted.</strong> Medyra
+          staff look at a message only if someone reports it. A first message to someone you aren&apos;t connected with
+          is a request they can ignore or decline without telling you.
+        </li>
+        <li>
+          <strong>Mentors describe their own experience.</strong> Medyra doesn&apos;t verify or accredit mentors, and a
+          mentor isn&apos;t automatically a qualified clinical supervisor. Mentoring here is not supervision, training
+          or patient-specific clinical advice. Don&apos;t share identifiable patient information in messages or mentoring.
+        </li>
+        <li>You can report a message or a mentor listing, and block anyone who contacts you.</li>
+      </ul>
+
       <h2>When we act</h2>
       <p>
         The team can warn a member, remove content, or suspend an account, and writes to the member explaining why. The

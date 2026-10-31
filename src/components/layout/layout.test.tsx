@@ -65,13 +65,14 @@ describe("MobileTabBar", () => {
       "/network",
       "/communities",
       "/forums",
+      "/messages",
       "/mentorship",
       "/saved",
       "/profile/amina_r",
       "/careers",
       "/settings",
     ]);
-    expect(within(dialog).getAllByText("Coming soon")).toHaveLength(2);
+    expect(within(dialog).getAllByText("Coming soon")).toHaveLength(1);
     expect(within(dialog).getByRole("button", { name: /sign out/i })).toBeInTheDocument();
   });
 });
@@ -91,6 +92,7 @@ describe("AppHeader", () => {
       "/network",
       "/communities",
       "/forums",
+      "/messages",
       "/mentorship",
       "/saved",
       "/profile/amina_r",
@@ -128,10 +130,7 @@ describe("AppHeader", () => {
 describe("app navigation config", () => {
   it("marks unbuilt modules as soon and builds the profile link from the username", () => {
     const nav = appNav("amina_r");
-    expect(nav.filter((n) => n.soon).map((n) => n.key)).toEqual([
-      "mentorship",
-      "careers",
-    ]);
+    expect(nav.filter((n) => n.soon).map((n) => n.key)).toEqual(["careers"]);
     // Network and Saved are real now; the secondary group sits below a divider.
     expect(nav.find((n) => n.key === "network")).toMatchObject({ href: "/network", group: "primary" });
     expect(nav.find((n) => n.key === "saved")).toMatchObject({ href: "/saved" });

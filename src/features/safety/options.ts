@@ -28,4 +28,6 @@ export const REPORT_TARGET_LABELS = {
   answer: "answer",
   reply: "reply",
   community: "community",
+  message: "message",
+  mentor: "mentor profile",
 } as const;

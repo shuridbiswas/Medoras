@@ -97,7 +97,7 @@ describe("submitting reports", () => {
     expect(await h.failure("select public.submit_report('profile', $1, 'spam')", [alice])).toMatch(/your own content/i);
     expect(await h.failure("select public.submit_report('post', gen_random_uuid(), 'spam')")).toMatch(/no longer available/i);
     expect(await h.failure("select public.submit_report('profile', $1, 'spam')", [dave])).toMatch(/no longer available/i);
-    expect(await h.failure("select public.submit_report('message', $1, 'spam')", [theirs])).toMatch(/Unknown report target/i);
+    expect(await h.failure("select public.submit_report('invoice', $1, 'spam')", [theirs])).toMatch(/Unknown report target/i);
     expect(await h.failure("select public.submit_report('post', $1, 'dislike')", [theirs])).toMatch(/check constraint/i);
     expect(await h.failure("select public.submit_report('post', $1, 'spam', $2)", [theirs, "x".repeat(1001)])).toMatch(/check constraint/i);
   });
